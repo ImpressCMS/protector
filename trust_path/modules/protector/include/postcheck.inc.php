@@ -7,9 +7,5 @@ if (!defined('PROTECTOR_PRECHECK_INCLUDED')) {
 }
 
 define('PROTECTOR_POSTCHECK_INCLUDED', 1);
-foreach (['icms_db_legacy_Factory', 'Icms\Db\Legacy\icms_db_legacy_Factory'] as $dbFactoryClass) {
-	if (class_exists($dbFactoryClass)) {
-		protector_postcommon();
-		return;
-	}
-}
+if (!class_exists('icms_db_legacy_Factory')) return;
+protector_postcommon();
