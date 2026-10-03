@@ -130,6 +130,38 @@ class Protector {
 		return true;
 	}
 
+	/*
+	 * Compares the top $topbit bits of two IPs (1-32, otherwise the check is off).
+	 * IPv6 addresses use twice that many bits (24 => /48). Addresses of different
+	 * families or invalid addresses cannot be compared and are not reported as moved.
+	 */
+	function is_ip_moved(string $last_ip, string $current_ip, int $topbit): bool {
+		if ($topbit < 1 || $topbit > 32) {
+			return false;
+		}
+
+		$last = @inet_pton($last_ip);
+		$current = @inet_pton($current_ip);
+		if ($last === false || $current === false || strlen($last) !== strlen($current)) {
+			return false;
+		}
+
+		$bits = strlen($last) === 4 ? $topbit : min($topbit * 2, 128);
+		$bytes = intdiv($bits, 8);
+		if (strncmp($last, $current, $bytes) !== 0) {
+			return true;
+		}
+
+		$remaining_bits = $bits % 8;
+		if ($remaining_bits === 0) {
+			return false;
+		}
+
+		$mask = (0xFF << (8 - $remaining_bits)) & 0xFF;
+
+		return (ord($last[$bytes]) & $mask) !== (ord($current[$bytes]) & $mask);
+	}
+
 	function setConn($conn) {
 		$this->_conn = $conn;
 	}
