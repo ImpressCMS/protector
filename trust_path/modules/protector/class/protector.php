@@ -138,6 +138,24 @@ class Protector {
 		return $this->_conf;
 	}
 
+	function getRemoteAddr(): string {
+		$ip = filter_var($_SERVER['REMOTE_ADDR'] ?? '', FILTER_VALIDATE_IP);
+
+		return $ip === false ? '' : $ip;
+	}
+
+	/*
+	 * Replacement for the deprecated FILTER_SANITIZE_STRING: strips tags and encodes
+	 * quotes (and backslashes, which could otherwise escape a quote in an interpolated query)
+	 */
+	function sanitizeString($value): string {
+		if (!is_string($value)) {
+			return '';
+		}
+
+		return str_replace(array('\\', "'", '"'), array('&#92;', '&#39;', '&#34;'), strip_tags($value));
+	}
+
 	function purge($redirect_to_top = false) {
 		// clear all session values
 		if (isset($_SESSION)) foreach ($_SESSION as $key => $val) {
@@ -187,8 +205,8 @@ class Protector {
 		// --
 
 		// this is not reliable - and we need to filter
-		$ip = filter_input(INPUT_SERVER, 'REMOTE_ADDR', FILTER_VALIDATE_IP);
-		$agent = filter_input(INPUT_SERVER, 'HTTP_USER_AGENT', FILTER_SANITIZE_STRING);
+		$ip = $this->getRemoteAddr();
+		$agent = $this->sanitizeString($_SERVER['HTTP_USER_AGENT'] ?? '');
 		// --
 
 		if ($unique_check) {
@@ -247,7 +265,7 @@ class Protector {
 	}
 
 	function register_bad_ips($jailed_time = 0, $ip = null) {
-		if (empty($ip)) $ip = filter_input(INPUT_SERVER, 'REMOTE_ADDR', FILTER_VALIDATE_IP);
+		if (empty($ip)) $ip = $this->getRemoteAddr();
 		if (empty($ip)) return false;
 
 		$bad_ips = $this->get_bad_ips(true);
@@ -306,7 +324,7 @@ class Protector {
 				switch (substr($ip, -1)) {
 					case '.':
 						// foward match
-						if (substr(filter_input(INPUT_SERVER, 'REMOTE_ADDR', FILTER_VALIDATE_IP), 0, strlen($ip)) == $ip) {
+						if (substr($this->getRemoteAddr(), 0, strlen($ip)) == $ip) {
 							$this->ip_matched_info = $info;
 							return true;
 						}
@@ -322,14 +340,14 @@ class Protector {
 					case '8':
 					case '9':
 						// full match
-						if (filter_input(INPUT_SERVER, 'REMOTE_ADDR', FILTER_VALIDATE_IP) == $ip) {
+						if ($this->getRemoteAddr() == $ip) {
 							$this->ip_matched_info = $info;
 							return true;
 						}
 						break;
 					default:
 						// perl regex
-						if (@preg_match($ip, filter_input(INPUT_SERVER, 'REMOTE_ADDR', FILTER_VALIDATE_IP))) {
+						if (@preg_match($ip, $this->getRemoteAddr())) {
 							$this->ip_matched_info = $info;
 							return true;
 						}
@@ -342,7 +360,7 @@ class Protector {
 	}
 
 	function deny_by_htaccess($ip = null) {
-		if (empty($ip)) $ip = filter_input(INPUT_SERVER, 'REMOTE_ADDR', FILTER_VALIDATE_IP);
+		if (empty($ip)) $ip = $this->getRemoteAddr();
 		if (empty($ip)) return false;
 		if (!function_exists('file_get_contents')) return false;
 
@@ -714,8 +732,8 @@ class Protector {
 	function check_dos_attack($uid = 0, $can_ban = false) {
 		if ($this->_done_dos) return true;
 
-		$ip4sql = filter_input(INPUT_SERVER, 'REMOTE_ADDR', FILTER_VALIDATE_IP);
-		$uri4sql = filter_input(INPUT_SERVER, 'REQUEST_URI', FILTER_SANITIZE_STRING);
+		$ip4sql = $this->getRemoteAddr();
+		$uri4sql = $this->sanitizeString($_SERVER['REQUEST_URI'] ?? '');
 		if (empty($ip4sql) || $ip4sql == '') return true;
 
 		// gargage collection
@@ -831,11 +849,13 @@ class Protector {
 
 	//
 	function check_brute_force() {
-		$ip4sql = filter_input(INPUT_SERVER, 'REMOTE_ADDR', FILTER_VALIDATE_IP);
-		$uri4sql = filter_input(INPUT_SERVER, 'REQUEST_URI', FILTER_SANITIZE_STRING);
+		$ip4sql = $this->getRemoteAddr();
+		$uri4sql = $this->sanitizeString($_SERVER['REQUEST_URI'] ?? '');
 		if (empty($ip4sql) || $ip4sql == '') return true;
 
-		$victim_uname = empty($_COOKIE['autologin_uname']) ? filter_input(INPUT_POST, 'uname', FILTER_SANITIZE_STRING) : filter_input(INPUT_COOKIE, 'autologin_uname', FILTER_SANITIZE_STRING);
+		$victim_uname = empty($_COOKIE['autologin_uname']) ?
+			$this->sanitizeString($_POST['uname'] ?? '') :
+			$this->sanitizeString($_COOKIE['autologin_uname']);
 		// some UA send 'deleted' as a value of the deleted cookie.
 		if ($victim_uname == 'deleted') return;
 		$mal4sql = addslashes("BRUTE FORCE: $victim_uname");
@@ -890,7 +910,7 @@ class Protector {
 		$this->_spam_check_point_recursive($_POST);
 
 		if ($this->_spamcount_uri >= $points4deny) {
-			$this->message .= filter_input(INPUT_SERVER, 'REQUEST_URI', FILTER_SANITIZE_STRING) . " SPAM POINT: $this->_spamcount_uri\n";
+			$this->message .= $this->sanitizeString($_SERVER['REQUEST_URI'] ?? '') . " SPAM POINT: $this->_spamcount_uri\n";
 			$this->output_log('URI SPAM', $uid, false, 128);
 			$ret = $this->call_filter('spamcheck_overrun');
 			if ($ret == false) exit();
