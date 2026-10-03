@@ -1,4 +1,4 @@
-Dokumentacja modu³u:
+Dokumentacja moduï¿½u:
 
 http://www.xoopswiki.org/wiki/index.php?title=Protector/pl
 
