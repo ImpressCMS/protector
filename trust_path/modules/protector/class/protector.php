@@ -122,12 +122,29 @@ class Protector {
 
 		// update config cache
 		if ($db_conf_serialized != $this->_conf_serialized) {
-			$fp = fopen($this->get_filepath4confighcache(), 'w');
-			fwrite($fp, $db_conf_serialized);
-			fclose($fp);
+			$this->write_file_atomically($this->get_filepath4confighcache(), $db_conf_serialized);
 			$this->_conf = $db_conf;
 		}
 		return true;
+	}
+
+	/*
+	 * Writes to a temporary file in the same directory and renames it over the target,
+	 * so that concurrent readers never see a truncated or half-written file
+	 */
+	function write_file_atomically(string $path, string $contents): bool {
+		$temp_path = $path . '.' . bin2hex(random_bytes(4)) . '.tmp';
+
+		if (@file_put_contents($temp_path, $contents, LOCK_EX) !== false) {
+			if (@rename($temp_path, $path)) {
+				return true;
+			}
+
+			@unlink($temp_path);
+		}
+
+		// directory not writable but the file itself is
+		return @file_put_contents($path, $contents, LOCK_EX) !== false;
 	}
 
 	function setConn($conn) {
@@ -208,16 +225,7 @@ class Protector {
 	function write_file_bwlimit($expire) {
 		$expire = min((int) $expire, time() + 300);
 
-		$fp = @fopen($this->get_filepath4bwlimit(), 'w');
-		if ($fp) {
-			@flock($fp, LOCK_EX);
-			fwrite($fp, $expire . "\n");
-			@flock($fp, LOCK_UN);
-			fclose($fp);
-			return true;
-		} else {
-			return false;
-		}
+		return $this->write_file_atomically($this->get_filepath4bwlimit(), $expire . "\n");
 	}
 
 	function get_bwlimit() {
@@ -234,16 +242,11 @@ class Protector {
 	function write_file_badips($bad_ips) {
 		asort($bad_ips);
 
-		$fp = @fopen($this->get_filepath4badips(), 'w');
-		if ($fp) {
-			@flock($fp, LOCK_EX);
-			fwrite($fp, serialize($bad_ips) . "\n");
-			@flock($fp, LOCK_UN);
-			fclose($fp);
-			return true;
-		} else {
-			return false;
-		}
+		return $this->write_file_atomically($this->get_filepath4badips(), serialize($bad_ips) . "\n");
+	}
+
+	function write_file_group1ips($group1_ips) {
+		return $this->write_file_atomically($this->get_filepath4group1ips(), serialize($group1_ips) . "\n");
 	}
 
 	function register_bad_ips($jailed_time = 0, $ip = null) {

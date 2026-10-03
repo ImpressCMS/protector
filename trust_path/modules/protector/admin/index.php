@@ -60,13 +60,7 @@ if (!empty($_POST['action'])) {
 		}
 
 		array_filter($g1_ips);
-		$fp = @fopen($protector->get_filepath4group1ips(), 'w');
-		if ($fp) {
-			@flock($fp, LOCK_EX);
-			fwrite($fp, serialize(array_unique($g1_ips)) . "\n");
-			@flock($fp, LOCK_UN);
-			fclose($fp);
-		} else {
+		if (!$protector->write_file_group1ips(array_unique($g1_ips))) {
 			$error_msg .= _AM_MSG_GROUP1IPSCANTOPEN;
 		}
 
