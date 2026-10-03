@@ -1,9 +1,11 @@
 <?php
 require_once __DIR__ . '/precheck_functions.php';
 
-if (in_array('Icms\Db\Legacy\icms_db_legacy_Factory', get_declared_classes())) {
-	require __DIR__ . '/postcheck.inc.php';
-	return;
+foreach (['icms_db_legacy_Factory', 'Icms\Db\Legacy\icms_db_legacy_Factory'] as $dbFactoryClass) {
+	if (class_exists($dbFactoryClass, false)) {
+		require __DIR__ . '/postcheck.inc.php';
+		return;
+	}
 }
 
 define('PROTECTOR_PRECHECK_INCLUDED', 1);
