@@ -1,5 +1,10 @@
 # Baseline run report (Phase 0)
 
+> **Historical record.** This describes the module as it was shipped, before the first Phase 1 commit. That commit
+> applied the three "enablement" fixes (S7, D4, S11) to the repository, removed the `as-is`/`enabled` profiles and
+> replaced scenarios `ASI-01..04` with `ENA-01..04`. After it the whole suite passes against the repository unpatched
+> (119 scenarios unchanged, 4 flipped). Commands below that mention profiles no longer exist.
+
 Module code under test: the repository at branch `claude/protector-module-modernize-72f85b`, **unmodified** (commit
 `3ebee91`), module version 5.1.0.
 

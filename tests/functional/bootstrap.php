@@ -11,12 +11,8 @@ require dirname(__DIR__, 2) . '/vendor/autoload.php';
 $config = Config::load();
 $layout = new Layout($config);
 $site = new Site($config, $layout);
-$applied = $site->restore();
+$site->restore();
 
-fwrite(STDERR, '[functional] site restored from snapshot, profile: ' . $config->get('PROFILE') . PHP_EOL);
-
-foreach ($applied as $patch) {
-    fwrite(STDERR, "[functional]   patched copy: {$patch}" . PHP_EOL);
-}
+fwrite(STDERR, '[functional] site restored from snapshot' . PHP_EOL);
 
 $GLOBALS['protector_functional'] = ['config' => $config, 'layout' => $layout, 'site' => $site];

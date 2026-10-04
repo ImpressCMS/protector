@@ -16,7 +16,6 @@
     },
     "scripts": {
         "test:functional": "@php tests/functional/bin/run.php",
-        "test:functional:as-is": "@php tests/functional/bin/run.php --profile=as-is --filter=AsIsBaselineTest",
         "spec": "@php tests/functional/bin/spec.php",
         "site:install": "@php tests/functional/bin/site.php install",
         "site:snapshot": "@php tests/functional/bin/site.php snapshot",

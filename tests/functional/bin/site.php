@@ -37,13 +37,8 @@ switch ($command) {
         break;
 
     case 'restore':
-        $applied = $site->restore();
-        $say('site restored from snapshot, profile: ' . $config->get('PROFILE'));
-
-        foreach ($applied as $patch) {
-            $say("  patched: {$patch}");
-        }
-
+        $site->restore();
+        $say('site restored from snapshot');
         break;
 
     default:

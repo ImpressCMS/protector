@@ -85,10 +85,7 @@ final class Site
         }
     }
 
-    /**
-     * @return list<string> compatibility patches applied for the active profile
-     */
-    public function restore(): array
+    public function restore(): void
     {
         $snapshot = FileSystem::normalize($this->config->get('SNAPSHOT_PATH'));
 
@@ -118,7 +115,5 @@ final class Site
 
         (new DbSnapshot($this->config))->restore();
         $this->deployFixtures();
-
-        return (new CompatibilityProfile($this->layout))->apply($this->config->get('PROFILE'));
     }
 }

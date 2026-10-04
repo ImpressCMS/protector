@@ -18,8 +18,7 @@ The reviewable description of every scenario is [SPEC.md](SPEC.md) (generated); 
 ## Running
 
 ```
-composer test:functional                 # whole suite, "enabled" profile (about 100 seconds)
-composer test:functional:as-is           # the four scenarios that document the unpatched module
+composer test:functional                 # whole suite (about 100 seconds)
 composer test:functional -- --filter RateLimitTest
 composer spec                            # regenerate SPEC.md from the test attributes
 ```
@@ -32,7 +31,7 @@ Reports are written to `tests/functional/reports/` (JUnit XML, test-dox text).
 |---|---|
 | `tests/` | the scenarios, one class per area; each test carries `#[Scenario]` (and `#[KnownDefect]`) attributes |
 | `src/Layout.php` | the only place that knows where the module's files live; changes when the layout changes |
-| `src/Site/` | install, snapshot/restore, compatibility profile, admin session helper |
+| `src/Site/` | install, snapshot/restore, admin session helper |
 | `src/Http/` | small cURL client (cookies, source address, Referer) |
 | `fixtures/` | test-only pages copied into the site root: `probe.php`, `sqlq.php`, `reflect.php`, `skipdos.php`, `reflect_nobu.php` |
 

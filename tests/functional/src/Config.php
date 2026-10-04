@@ -13,7 +13,6 @@ final class Config
         'SNAPSHOT_PATH' => 'C:/Users/david/trustpath/202-snapshot',
         'PRISTINE_PATH' => 'C:/Users/david/trustpath/_backup/202-pristine',
         'SNAPSHOT_DB' => 'protector_test_snapshot',
-        'PROFILE' => 'enabled',
         'SITE_PATH_FOR_HASH' => 'C:/Users/david/sites/202',
         'DB_HOST' => '127.0.0.1',
         'DB_PORT' => '3306',
@@ -38,12 +37,6 @@ final class Config
 
             [$key, $value] = explode('=', $line, 2);
             $this->values[trim($key)] = $value;
-        }
-
-        $profile = getenv('PROTECTOR_PROFILE');
-
-        if (is_string($profile) && $profile !== '') {
-            $this->values['PROFILE'] = $profile;
         }
     }
 
