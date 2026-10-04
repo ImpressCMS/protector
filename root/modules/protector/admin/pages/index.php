@@ -273,10 +273,5 @@ echo "
 icms_cp_footer();
 
 function protector_ip_cmp($a, $b) {
-	$as = explode('.', $a);
-	$aval = @$as[0] * 167777216 + @$as[1] * 65536 + @$as[2] * 256 + @$as[3];
-	$bs = explode('.', $b);
-	$bval = @$bs[0] * 167777216 + @$bs[1] * 65536 + @$bs[2] * 256 + @$bs[3];
-
-	return $aval > $bval ? 1 : -1;
+	return \ImpressCMS\Module\Protector\Ban\IpComparator::compare((string) $a, (string) $b);
 }
