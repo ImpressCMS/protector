@@ -175,13 +175,13 @@ final class ContentChecksTest extends SiteTestCase
         $this->assertTrue($this->isServed($response));
     }
 
-    #[Scenario('FEA-03', '"disable features" at its default, logging at its default', 'a request asks for /xmlrpc.php', 'the log write needs the database, so the page dies with "No DB connection"')]
-    #[KnownDefect('D9', 'events raised before the database service exists cannot be logged')]
-    public function testXmlRpcRequestAtDefaultLogLevelDiesWithoutDatabase(): void
+    #[Scenario('FEA-03', '"disable features" at its default, logging at its default', 'a request asks for /xmlrpc.php', 'the request is terminated with an empty page and an xmlrpc record is logged (D9 fixed)')]
+    public function testXmlRpcRequestAtDefaultLogLevelIsLogged(): void
     {
         $response = $this->client()->get('/xmlrpc.php');
 
-        $this->assertStringContainsString('No DB connection', $response->body);
+        $this->assertSame('', $response->body);
+        $this->assertSame(['xmlrpc'], $this->logTypes());
     }
 
     #[Scenario('MAN-01', 'the manipulation check is on', 'the site\'s front page is requested twice', 'the first request stores a fingerprint of the web root and index.php in the preferences; it stays unchanged on the second request')]

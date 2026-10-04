@@ -11,6 +11,7 @@ use ImpressCMS\Module\Protector\Ban\IpMatch;
 use ImpressCMS\Module\Protector\Ban\IpMatcher;
 use ImpressCMS\Module\Protector\Config\ConfigStore;
 use ImpressCMS\Module\Protector\Config\ProtectorConfig;
+use ImpressCMS\Module\Protector\Database\CorePdoProvider;
 use ImpressCMS\Module\Protector\Database\DatabaseTrap;
 use ImpressCMS\Module\Protector\Dos\AccessRepository;
 use ImpressCMS\Module\Protector\Dos\BandwidthLimiter;
@@ -94,7 +95,7 @@ final class Kernel
             $paths,
             $config,
             $responder,
-            new AuditLog($config, $responder),
+            new AuditLog($config, new CorePdoProvider(), XOOPS_DB_PREFIX),
             $filters,
             new BanList($paths),
             new GroupOneIpList($paths),
@@ -337,11 +338,25 @@ final class Kernel
             $_GET = $_POST = [];
         }
 
+        if ($policy->bansTemporarily() && $policy->exits()) {
+            $this->banClientNow($policy, $config);
+        }
+
         $this->log->write($this->log->lastType());
 
         if ($policy->exits()) {
             $this->purger->purge();
         }
+    }
+
+    private function banClientNow(ViolationPolicy $policy, ProtectorConfig $config): void
+    {
+        $this->banPermanentlyWhenPossible = false;
+        $this->banTemporarilyWhenPossible = false;
+
+        $policy->bansPermanently()
+            ? $this->banList->registerClient()
+            : $this->banList->registerClient(time() + $config->int('banip_time0'));
     }
 
     private function warnWhenDataDirectoryIsNotWritable(): void
@@ -361,7 +376,6 @@ final class Kernel
             return;
         }
 
-        $this->log->databaseIsReady();
         $this->config->refreshFromDatabase();
     }
 

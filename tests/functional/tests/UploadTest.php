@@ -51,13 +51,13 @@ final class UploadTest extends SiteTestCase
         $this->assertSame(0, $response->json()['files']['upfile']['error']);
     }
 
-    #[Scenario('UPL-02', 'default preferences', 'a PHP script is uploaded', 'the log write needs the database, so the page dies with "No DB connection" and the upload is not served')]
-    #[KnownDefect('D9', 'events raised before the database service exists cannot be logged')]
-    public function testScriptUploadAtDefaultLogLevelDiesWithoutDatabase(): void
+    #[Scenario('UPL-02', 'default preferences', 'a PHP script is uploaded', 'the request is terminated with the Protector message and an UPLOAD record is logged (D9 fixed)')]
+    public function testScriptUploadAtDefaultLogLevelIsLogged(): void
     {
         $response = $this->upload('script.php', 'script.php');
 
-        $this->assertStringContainsString('No DB connection', $response->body);
+        $this->assertStringContainsString(self::BLOCK_MESSAGE, $response->body);
+        $this->assertSame(['UPLOAD'], $this->logTypes());
     }
 
     #[Scenario('UPL-03', 'logging off', 'a PHP script is uploaded', 'the request is terminated with the Protector message')]

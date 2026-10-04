@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ImpressCMS\Module\Protector\Tests\Unit;
 
 use ImpressCMS\Module\Protector\Config\ConfigStore;
+use ImpressCMS\Module\Protector\Database\PdoProvider;
 use ImpressCMS\Module\Protector\Http\Responder;
 use ImpressCMS\Module\Protector\Log\AuditLog;
 use ImpressCMS\Module\Protector\Storage\DataPaths;
@@ -48,9 +49,20 @@ abstract class UnitTestCase extends TestCase
         return new ConfigStore($this->paths());
     }
 
-    protected function auditLog(?ConfigStore $config = null): AuditLog
+    protected function auditLog(?ConfigStore $config = null, ?\PDO $connection = null): AuditLog
     {
-        return new AuditLog($config ?? $this->configStore(), $this->throwingResponder());
+        $database = new class ($connection) implements PdoProvider {
+            public function __construct(private readonly ?\PDO $connection)
+            {
+            }
+
+            public function connection(): ?\PDO
+            {
+                return $this->connection;
+            }
+        };
+
+        return new AuditLog($config ?? $this->configStore(), $database, 'test');
     }
 
     protected function throwingResponder(): Responder

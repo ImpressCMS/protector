@@ -110,7 +110,7 @@ composer test:functional            # about 100 seconds
 | FLT-07 | the filter "postcommon_post_htmlpurify4guest" is enabled | a guest posts a message longer than 32 characters | the posted HTML has been purified |  |
 | FEA-01 | "disable features" at its default (XML-RPC and the old criteria bug) | a request posts uname=0, logging off | the request is terminated with an empty page |  |
 | FEA-02 | "disable features" set to none | a request posts uname=0 | the request is served |  |
-| FEA-03 | "disable features" at its default, logging at its default | a request asks for /xmlrpc.php | the log write needs the database, so the page dies with "No DB connection" | **D9** |
+| FEA-03 | "disable features" at its default, logging at its default | a request asks for /xmlrpc.php | the request is terminated with an empty page and an xmlrpc record is logged (D9 fixed) |  |
 | MAN-01 | the manipulation check is on | the site's front page is requested twice | the first request stores a fingerprint of the web root and index.php in the preferences; it stays unchanged on the second request |  |
 
 ## Database Trap And Output Check
@@ -190,10 +190,10 @@ composer test:functional            # about 100 seconds
 
 | ID | Given | When | Then | Known defect |
 |---|---|---|---|---|
-| SAN-01 | default preferences | a request tries to inject xoopsConfig[nocommon] | the log write needs the database, which does not exist yet at this stage, so the page dies with "No DB connection" and nothing is logged | **D9** |
+| SAN-01 | default preferences | a request tries to inject xoopsConfig[nocommon] | the request is terminated with the Protector message and a CONTAMI record is logged (D9 fixed) |  |
 | SAN-02 | logging off, contamination action "none" | a request tries to inject xoopsConfig[nocommon] | Protector lets the request through and the core itself answers with a redirect |  |
 | SAN-03 | logging off, contamination action "exit" | a request tries to inject xoopsConfig[nocommon] | the request is terminated with the Protector message |  |
-| SAN-04 | logging off, contamination action "exit + temporary ban" | a request tries to inject xoopsConfig[nocommon], then the same address requests a normal page | the first request is terminated; the address should now be banned but is not | **D10** |
+| SAN-04 | logging off, contamination action "exit + temporary ban" | a request tries to inject xoopsConfig[nocommon], then the same address requests a normal page | the first request is terminated and the address is banned, so the second request gets the jail message (D10 fixed) |  |
 | SAN-05 | isolated-comment action "none" | a request carries a value ending in an unterminated "/*" | the value is passed on unchanged and an ISOCOM record is logged |  |
 | SAN-06 | isolated-comment action "sanitize" | a request carries a value ending in an unterminated "/*" | the comment is closed ("*/" appended) and an ISOCOM record is logged |  |
 | SAN-07 | isolated-comment action "exit" | a request carries a value ending in an unterminated "/*" | the request is terminated with the Protector message and logged |  |
@@ -202,10 +202,10 @@ composer test:functional            # about 100 seconds
 | SAN-10 | union action "none" | a request carries "1 UNION SELECT 1" | the value is passed on unchanged and a UNION record is logged |  |
 | SAN-11 | union action "sanitize" | a request carries "1 UNION SELECT 1" | the word UNION is rewritten to "uni-on" and a UNION record is logged |  |
 | SAN-12 | union action "exit" | a request carries "1 UNION SELECT 1" | the request is terminated with the Protector message and logged |  |
-| SAN-13 | default preferences | a request carries a NUL byte | the log write needs the database, so the page dies with "No DB connection" | **D9** |
+| SAN-13 | default preferences | a request carries a NUL byte | the NUL byte is replaced by a space, the page is served and a NullByte record is logged (D9 fixed) |  |
 | SAN-14 | logging off, NUL-byte sanitising on | a request carries a NUL byte | the NUL byte is replaced by a space |  |
 | SAN-15 | NUL-byte sanitising off | a request carries a NUL byte | the value is passed on unchanged |  |
-| SAN-16 | default preferences | a request carries "../../etc/passwd" | the log write needs the database, so the page dies with "No DB connection" | **D9** |
+| SAN-16 | default preferences | a request carries "../../etc/passwd" | the value is rewritten, the page is served and a DirTraversal record is logged (D9 fixed) |  |
 | SAN-17 | logging off, "../" elimination on | a request carries "../../etc/passwd" | the value is rewritten with a trailing " ." |  |
 | SAN-18 | "../" elimination off | a request carries "../../etc/passwd" | the value is passed on unchanged |  |
 | SAN-19 | the visitor's address matches "reliable IPs" | a request carries "../../etc/passwd" | the value is passed on unchanged |  |
@@ -238,7 +238,7 @@ composer test:functional            # about 100 seconds
 | ID | Given | When | Then | Known defect |
 |---|---|---|---|---|
 | UPL-01 | default preferences | a genuine PNG is uploaded as real.png | the upload reaches the page untouched |  |
-| UPL-02 | default preferences | a PHP script is uploaded | the log write needs the database, so the page dies with "No DB connection" and the upload is not served | **D9** |
+| UPL-02 | default preferences | a PHP script is uploaded | the request is terminated with the Protector message and an UPLOAD record is logged (D9 fixed) |  |
 | UPL-03 | logging off | a PHP script is uploaded | the request is terminated with the Protector message |  |
 | UPL-04 | logging off | a file with two dots in its name (double.sneaky.png) is uploaded | the request is terminated with the Protector message |  |
 | UPL-05 | logging off | a text file claiming to be a JPEG is uploaded | the request is terminated with the Protector message (the PHP warning it emits first is defect D6 and is not asserted) |  |
@@ -252,7 +252,5 @@ These scenarios assert today's behaviour although it is a defect. They are the o
 
 | Defect | Pinned behaviour | Scenarios |
 |---|---|---|
-| **D9** | events raised before the database service exists cannot be logged | FEA-03, SAN-01, SAN-13, SAN-16, UPL-02 |
-| **D10** | the request ends in purge() before the postcheck stage that would register the ban | SAN-04 |
 
 _127 scenarios generated from the test attributes by `php tests/functional/bin/spec.php`._

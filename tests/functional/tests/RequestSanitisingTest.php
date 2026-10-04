@@ -18,14 +18,13 @@ final class RequestSanitisingTest extends SiteTestCase
 
     private const BAD_IP_MESSAGE = 'You are registered as BAD_IP by Protector.';
 
-    #[Scenario('SAN-01', 'default preferences', 'a request tries to inject xoopsConfig[nocommon]', 'the log write needs the database, which does not exist yet at this stage, so the page dies with "No DB connection" and nothing is logged')]
-    #[KnownDefect('D9', 'events raised before the database service exists cannot be logged')]
-    public function testContaminationAtDefaultLogLevelDiesWithoutDatabase(): void
+    #[Scenario('SAN-01', 'default preferences', 'a request tries to inject xoopsConfig[nocommon]', 'the request is terminated with the Protector message and a CONTAMI record is logged (D9 fixed)')]
+    public function testContaminationAtDefaultLogLevelIsLoggedAndStopped(): void
     {
         $response = $this->client()->get(self::CONTAMINATION);
 
-        $this->assertStringContainsString('No DB connection', $response->body);
-        $this->assertSame([], $this->logRows());
+        $this->assertStringContainsString(self::BLOCK_MESSAGE, $response->body);
+        $this->assertSame(['CONTAMI'], $this->logTypes());
     }
 
     #[Scenario('SAN-02', 'logging off, contamination action "none"', 'a request tries to inject xoopsConfig[nocommon]', 'Protector lets the request through and the core itself answers with a redirect')]
@@ -49,9 +48,8 @@ final class RequestSanitisingTest extends SiteTestCase
         $this->assertStringContainsString(self::BLOCK_MESSAGE, $response->body);
     }
 
-    #[Scenario('SAN-04', 'logging off, contamination action "exit + temporary ban"', 'a request tries to inject xoopsConfig[nocommon], then the same address requests a normal page', 'the first request is terminated; the address should now be banned but is not')]
-    #[KnownDefect('D10', 'the request ends in purge() before the postcheck stage that would register the ban')]
-    public function testContaminationWithBanActionNeverBansTheVisitor(): void
+    #[Scenario('SAN-04', 'logging off, contamination action "exit + temporary ban"', 'a request tries to inject xoopsConfig[nocommon], then the same address requests a normal page', 'the first request is terminated and the address is banned, so the second request gets the jail message (D10 fixed)')]
+    public function testContaminationWithBanActionBansTheVisitor(): void
     {
         $this->configure(['log_level' => 0, 'contami_action' => 7]);
         $client = $this->client();
@@ -60,7 +58,7 @@ final class RequestSanitisingTest extends SiteTestCase
         $second = $this->probe($client, ['next' => 1]);
 
         $this->assertStringContainsString(self::BLOCK_MESSAGE, $first->body);
-        $this->assertSame('1', $second->json()['get']['next']);
+        $this->assertStringContainsString('You are registered as BAD_IP by Protector.', $second->body);
     }
 
     #[Scenario('SAN-05', 'isolated-comment action "none"', 'a request carries a value ending in an unterminated "/*"', 'the value is passed on unchanged and an ISOCOM record is logged')]
@@ -156,13 +154,13 @@ final class RequestSanitisingTest extends SiteTestCase
         $this->assertSame(['UNION'], $this->logTypes());
     }
 
-    #[Scenario('SAN-13', 'default preferences', 'a request carries a NUL byte', 'the log write needs the database, so the page dies with "No DB connection"')]
-    #[KnownDefect('D9', 'events raised before the database service exists cannot be logged')]
-    public function testNullByteAtDefaultLogLevelDiesWithoutDatabase(): void
+    #[Scenario('SAN-13', 'default preferences', 'a request carries a NUL byte', 'the NUL byte is replaced by a space, the page is served and a NullByte record is logged (D9 fixed)')]
+    public function testNullByteAtDefaultLogLevelIsLogged(): void
     {
         $response = $this->client()->get('/probe.php?a=x%00y');
 
-        $this->assertStringContainsString('No DB connection', $response->body);
+        $this->assertSame('x y', $response->json()['get']['a']);
+        $this->assertSame(['NullByte'], $this->logTypes());
     }
 
     #[Scenario('SAN-14', 'logging off, NUL-byte sanitising on', 'a request carries a NUL byte', 'the NUL byte is replaced by a space')]
@@ -185,13 +183,13 @@ final class RequestSanitisingTest extends SiteTestCase
         $this->assertSame("x\0y", $response->json()['get']['a']);
     }
 
-    #[Scenario('SAN-16', 'default preferences', 'a request carries "../../etc/passwd"', 'the log write needs the database, so the page dies with "No DB connection"')]
-    #[KnownDefect('D9', 'events raised before the database service exists cannot be logged')]
-    public function testDirectoryTraversalAtDefaultLogLevelDiesWithoutDatabase(): void
+    #[Scenario('SAN-16', 'default preferences', 'a request carries "../../etc/passwd"', 'the value is rewritten, the page is served and a DirTraversal record is logged (D9 fixed)')]
+    public function testDirectoryTraversalAtDefaultLogLevelIsLogged(): void
     {
         $response = $this->client()->get('/probe.php?file=' . urlencode('../../etc/passwd'));
 
-        $this->assertStringContainsString('No DB connection', $response->body);
+        $this->assertSame('../../etc/passwd .', $response->json()['get']['file']);
+        $this->assertSame(['DirTraversal'], $this->logTypes());
     }
 
     #[Scenario('SAN-17', 'logging off, "../" elimination on', 'a request carries "../../etc/passwd"', 'the value is rewritten with a trailing " ."')]
