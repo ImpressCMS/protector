@@ -32,6 +32,16 @@ $modversion['adminindex'] = "admin/index.php";
 $modversion['adminmenu'] = "admin/admin_menu.php";
 
 // Templates
+$modversion['templates'] = array(
+	array(
+		'file' => 'protector_admin_index.html',
+		'description' => 'Bad IPs, allowed IPs for group 1 and the log of blocked requests',
+	),
+	array(
+		'file' => 'protector_admin_advisory.html',
+		'description' => 'Security advisories and attack simulation links',
+	),
+);
 
 // Blocks
 $modversion['blocks'] = array();
