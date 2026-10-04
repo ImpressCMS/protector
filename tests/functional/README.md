@@ -45,3 +45,10 @@ Reports are written to `tests/functional/reports/` (JUnit XML, test-dox text).
   (a copy made before the first run), recreates the trust path and database `protector_test`, and never touches other
   Herd sites or databases.
 * **Windows**: `dirname('/x.php')` returns a backslash; the client normalises redirect targets accordingly.
+
+## Upgrade scenario (LIF-08)
+
+`UpgradeTest` exports the git ref `5.2` (the previous release) with `git archive`, installs it through the core
+installer, adds data, copies the current files over it and runs the module update. It needs `git` and `tar` on the
+PATH and the `5.2` branch in the repository; it is skipped with a message otherwise. The harness reads the module
+tree to install from `PROTECTOR_MODULE_SOURCE` when that environment variable is set (used by the scenario).

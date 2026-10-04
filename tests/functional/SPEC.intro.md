@@ -11,6 +11,9 @@ with a **known defect** may change, and only in the phase that fixes that defect
 * **First Phase 1 commit** fixed the three defects that made the module do nothing on ImpressCMS 2.1 (S7, D4, S11).
   Scenarios `ASI-01` to `ASI-04`, which documented the broken behaviour, were replaced by `ENA-01` to `ENA-04`, which
   assert the fixed behaviour. All other scenarios were untouched and passed before and after.
+* **Phase 1 layout move** (single module directory, namespaced classes). Only the layout adapter (`src/Layout.php`)
+  changed, plus one hard-coded file path in `ENA-04` that now comes from the adapter. One scenario was **added**,
+  `LIF-08` (upgrade from the previous release); no existing assertion was changed.
 
 ## Known defects still pinned
 

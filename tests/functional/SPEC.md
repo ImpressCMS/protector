@@ -11,6 +11,9 @@ with a **known defect** may change, and only in the phase that fixes that defect
 * **First Phase 1 commit** fixed the three defects that made the module do nothing on ImpressCMS 2.1 (S7, D4, S11).
   Scenarios `ASI-01` to `ASI-04`, which documented the broken behaviour, were replaced by `ENA-01` to `ENA-04`, which
   assert the fixed behaviour. All other scenarios were untouched and passed before and after.
+* **Phase 1 layout move** (single module directory, namespaced classes). Only the layout adapter (`src/Layout.php`)
+  changed, plus one hard-coded file path in `ENA-04` that now comes from the adapter. One scenario was **added**,
+  `LIF-08` (upgrade from the previous release); no existing assertion was changed.
 
 ## Known defects still pinned
 
@@ -219,6 +222,12 @@ composer test:functional            # about 100 seconds
 | SES-06 | the allowed-IPs list for group 1 ends with a dot (127.0.0.), meaning a prefix match | an administrator requests a page from 127.0.0.2 | the administrator is recognised |  |
 | SES-07 | the allowed-IPs list for group 1 is empty | an administrator requests a page | the administrator is recognised (an empty list means "all addresses") |  |
 
+## Upgrade
+
+| ID | Given | When | Then | Known defect |
+|---|---|---|---|---|
+| LIF-08 | a site running the previous release (branch 5.2) with a changed preference, a log record and a banned address | the current files are copied over the installation without removing anything and the administrator runs "update" for the module | preferences, log record and ban list are kept; the banned address is still blocked; checks, SQL trap and both admin pages work with the new code |  |
+
 ## Upload
 
 | ID | Given | When | Then | Known defect |
@@ -243,4 +252,4 @@ These scenarios assert today's behaviour although it is a defect. They are the o
 | **D10** | the request ends in purge() before the postcheck stage that would register the ban | SAN-04 |
 | **D11** | the HTMLPurifier filters call Icms\Core\HTMLFilter::htmlpurify(), which no longer exists | FLT-06 |
 
-_123 scenarios generated from the test attributes by `php tests/functional/bin/spec.php`._
+_124 scenarios generated from the test attributes by `php tests/functional/bin/spec.php`._

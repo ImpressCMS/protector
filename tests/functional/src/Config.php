@@ -68,8 +68,18 @@ final class Config
         return $this->values['DB_SALT'];
     }
 
+    /**
+     * Directory that contains the module tree under test (root/ and trust_path/). PROTECTOR_MODULE_SOURCE points
+     * it at another checkout, for example an older release exported with "git archive", for upgrade scenarios.
+     */
     public function repoRoot(): string
     {
+        $override = getenv('PROTECTOR_MODULE_SOURCE');
+
+        if (is_string($override) && $override !== '') {
+            return rtrim(str_replace('\\', '/', $override), '/');
+        }
+
         return str_replace('\\', '/', dirname(__DIR__, 3));
     }
 
