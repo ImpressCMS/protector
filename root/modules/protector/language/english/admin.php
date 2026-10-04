@@ -1,9 +1,4 @@
 <?php
-// mymenu
-define('_MD_A_MYMENU_MYTPLSADMIN', '');
-define('_MD_A_MYMENU_MYBLOCKSADMIN', 'Permissions');
-define('_MD_A_MYMENU_MYPREFERENCES', 'Preferences');
-
 // index.php
 define("_AM_TH_DATETIME", "Time");
 define("_AM_TH_USER", "User");
@@ -48,3 +43,10 @@ define("_AM_ADV_DBFACTORYUNPATCHED", "Your databasefactory is not ready for DBLa
 define("_AM_ADV_SUBTITLECHECK", "Check if Protector works well");
 define("_AM_ADV_CHECKCONTAMI", "Contaminations");
 define("_AM_ADV_CHECKISOCOM", "Isolated Comments");
+
+define("_AM_ADV_PRELOADMISSING", "Protector is not started: copy the module's preload/protector.php to " . ICMS_URL . "/plugins/preloads/.");
+define("_AM_ADV_DATADIRECTORY", "Protector keeps the bad IP list, the preference cache and the bandwidth marker in this directory. Make it writable for the web server.");
+define("_AM_ADV_PHPVERSION", "ImpressCMS 2.1 requires PHP 8.2 or newer.");
+
+// both forms of the start page
+define("_AM_MSG_INVALIDTOKEN", "The security token is missing, invalid or expired. Nothing was changed. Open the page again and retry.");

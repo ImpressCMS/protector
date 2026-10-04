@@ -45,46 +45,6 @@ if (!function_exists('protector_oninstall_base')) {
 			}
 		}
 
-		// TEMPLATES
-		$tplfile_handler = new \Icms\View\Template\File\Handler(icms::$xoopsDB);
-		$tpl_path = __DIR__ . '/templates';
-		if ($handler = @opendir($tpl_path . '/')) {
-			while (($file = readdir($handler)) !== false) {
-				if (substr($file, 0, 1) == '.') continue;
-				$file_path = $tpl_path . '/' . $file;
-				if (is_file($file_path) && in_array(strrchr($file, '.'), array (
-					'.html',
-					'.css',
-					'.js'
-				))) {
-					$mtime = (int) (@filemtime($file_path));
-					$tplfile = &$tplfile_handler->create();
-					$tplfile->setVar('tpl_source', file_get_contents($file_path), true);
-					$tplfile->setVar('tpl_refid', $mid);
-					$tplfile->setVar('tpl_tplset', 'default');
-					$tplfile->setVar('tpl_file', $mydirname . '_' . $file);
-					$tplfile->setVar('tpl_desc', '', true);
-					$tplfile->setVar('tpl_module', $mydirname);
-					$tplfile->setVar('tpl_lastmodified', $mtime);
-					$tplfile->setVar('tpl_lastimported', 0);
-					$tplfile->setVar('tpl_type', 'module');
-					if (!$tplfile_handler->insert($tplfile)) {
-						$ret[] = '<span style="color:#ff0000;">ERROR: Could not insert template <b>' . htmlspecialchars($mydirname . '_' . $file) . '</b> to the database.</span><br />';
-					} else {
-						$tplid = $tplfile->getVar('tpl_id');
-						$ret[] = 'Template <b>' . htmlspecialchars($mydirname . '_' . $file) . '</b> added to the database. (ID: <b>' . $tplid . '</b>)<br />';
-						// generate compiled file
-						if (!\Icms\View\Tpl::template_touch($tplid)) {
-							$ret[] = '<span style="color:#ff0000;">ERROR: Failed compiling template <b>' . htmlspecialchars($mydirname . '_' . $file) . '</b>.</span><br />';
-						} else {
-							$ret[] = 'Template <b>' . htmlspecialchars($mydirname . '_' . $file) . '</b> compiled.</span><br />';
-						}
-					}
-				}
-			}
-			closedir($handler);
-		}
-
 		/*
 		 * Fixes Bug #619 : parse Error
 		 */

@@ -244,6 +244,11 @@ final class Kernel
         return $this->paths;
     }
 
+    public function pdoProvider(): PdoProvider
+    {
+        return $this->database;
+    }
+
     public function matchedBanInfo(): mixed
     {
         return $this->matchedBanInfo;

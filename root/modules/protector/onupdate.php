@@ -35,46 +35,6 @@ if (!function_exists('protector_onupdate_base')) {
 			$db->query("ALTER TABLE " . $db->prefix($mydirname . "_log") . " MODIFY `timestamp` DATETIME");
 		}
 
-		// TEMPLATES (all templates have been already removed by modulesadmin)
-		$tplfile_handler = &icms::handler('icms_view_template_file');
-		$tpl_path = __DIR__ . '/templates';
-		if ($handler = @opendir($tpl_path . '/')) {
-			while (($file = readdir($handler)) !== false) {
-				if (substr($file, 0, 1) == '.') continue;
-				$file_path = $tpl_path . '/' . $file;
-				if (is_file($file_path) && in_array(strrchr($file, '.'), array (
-					'.html',
-					'.css',
-					'.js'
-				))) {
-					$mtime = (int) (@filemtime($file_path));
-					$tplfile = &$tplfile_handler->create();
-					$tplfile->setVar('tpl_source', file_get_contents($file_path), true);
-					$tplfile->setVar('tpl_refid', $mid);
-					$tplfile->setVar('tpl_tplset', 'default');
-					$tplfile->setVar('tpl_file', $mydirname . '_' . $file);
-					$tplfile->setVar('tpl_desc', '', true);
-					$tplfile->setVar('tpl_module', $mydirname);
-					$tplfile->setVar('tpl_lastmodified', $mtime);
-					$tplfile->setVar('tpl_lastimported', 0);
-					$tplfile->setVar('tpl_type', 'module');
-					if (!$tplfile_handler->insert($tplfile)) {
-						$msgs[] = '<span style="color:#ff0000;">ERROR: Could not insert template <b>' . htmlspecialchars($mydirname . '_' . $file) . '</b> to the database.</span>';
-					} else {
-						$tplid = $tplfile->getVar('tpl_id');
-						$msgs[] = 'Template <b>' . htmlspecialchars($mydirname . '_' . $file) . '</b> added to the database. (ID: <b>' . $tplid . '</b>)';
-						// generate compiled file
-						if (!\Icms\View\Tpl::template_touch($tplid)) {
-							$msgs[] = '<span style="color:#ff0000;">ERROR: Failed compiling template <b>' . htmlspecialchars($mydirname . '_' . $file) . '</b>.</span>';
-						} else {
-							$msgs[] = 'Template <b>' . htmlspecialchars($mydirname . '_' . $file) . '</b> compiled.</span>';
-						}
-					}
-				}
-			}
-			closedir($handler);
-		}
-
 		if ((defined('ICMS_PRELOAD_PATH') && !file_exists(ICMS_PRELOAD_PATH . '/protector.php')) && (!defined('PROTECTOR_POSTCHECK_INCLUDED') || !defined('PROTECTOR_PRECHECK_INCLUDED')) && function_exists('icms_copyr')) {
 			\Icms\Core\Filesystem::copyRecursive(__DIR__ . '/preload/protector.php', ICMS_PRELOAD_PATH . '/protector.php');
 		}
