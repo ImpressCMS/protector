@@ -16,17 +16,23 @@ with a **known defect** may change, and only in the phase that fixes that defect
   `LIF-08` (upgrade from the previous release); no existing assertion was changed.
 * **Phase 2** (decomposition of the `Protector` class into `Kernel`, guards and services) changed no row of this
   document and no assertion. The only edit to the suite is this note.
+* **Phase 3** (defect fixes) flipped the rows listed under "Known defects" below and added three scenarios. No other
+  assertion changed.
 
-## Known defects still pinned
+## Known defects
 
-1. **Anything detected before the database exists dies with "No DB connection" (D9).** Null bytes, `../`, bad uploads,
-   contamination, `xmlrpc.php` and the old criteria-bug probe are stopped, but by an error message instead of the
-   configured action, and never logged (SAN-01, SAN-13, SAN-16, UPL-02, FEA-03). They behave as documented when
-   logging is switched off.
-2. **The "group 1 allowed IPs" form is broken (D1).** It stores the line numbers instead of the addresses. With two or
-   more lines every administrator is locked out; with one line nothing is restricted (BAN-10, BAN-11).
-3. **Contamination with a ban action never bans (D10)** and **the built-in HTMLPurifier filters crash (D11)**
-   (SAN-04, FLT-06).
+None are pinned any more. Phase 3 fixed the ones this suite recorded, each in its own commit, and flipped only the rows
+that pinned them:
+
+| Defect | Rows flipped |
+|---|---|
+| D1 the "group 1 allowed IPs" form stored line numbers | BAN-10, BAN-11 |
+| D9 events raised before the database exists died with "No DB connection" | SAN-01, SAN-13, SAN-16, UPL-02, FEA-03 |
+| D10 contamination with an "exit + ban" action never banned | SAN-04 |
+| D11 the HTMLPurifier filters crashed | FLT-06 |
+
+New rows added in Phase 3: SAN-23 and SAN-24 (D12, `$_REQUEST` follows the sanitised value) and FLT-07 (guest
+HTMLPurifier filter). Defects without a pinned row (D2 to D8, D13) are covered by unit tests in `tests/unit/`.
 
 ## How the suite works
 
@@ -37,7 +43,7 @@ with a **known defect** may change, and only in the phase that fixes that defect
   "reliable IPs" setting exempts `127.0.0.1`, so the tests use other addresses for the "attacker".
 * Preferences are changed in the database, then one harmless request refreshes Protector's cache, exactly like saving
   them in the control panel would.
-* Rows marked **known defect** assert the *current, wrong* behaviour on purpose.
+* A row marked **known defect** asserts the *current, wrong* behaviour on purpose (none at the moment).
 * After changing the module in the repository, run `composer site:install` and `composer site:snapshot` again so the
   site contains the new code.
 
