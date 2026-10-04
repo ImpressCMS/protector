@@ -42,7 +42,7 @@ final class BruteForceGuard
 
         $uri = ServerRequest::uri();
 
-        $this->access->purgeExpired();
+        $this->access->collectGarbage();
 
         if ($this->access->countFailedLogins($ip) > $this->config->int('bf_count')) {
             $this->banList->register($ip, time() + $this->config->int('banip_time0'));

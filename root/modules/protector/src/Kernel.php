@@ -13,6 +13,7 @@ use ImpressCMS\Module\Protector\Config\ConfigStore;
 use ImpressCMS\Module\Protector\Config\ProtectorConfig;
 use ImpressCMS\Module\Protector\Database\CorePdoProvider;
 use ImpressCMS\Module\Protector\Database\DatabaseTrap;
+use ImpressCMS\Module\Protector\Database\PdoProvider;
 use ImpressCMS\Module\Protector\Dos\AccessRepository;
 use ImpressCMS\Module\Protector\Dos\BandwidthLimiter;
 use ImpressCMS\Module\Protector\Dos\BruteForceGuard;
@@ -71,6 +72,7 @@ final class Kernel
         private readonly SessionPurger $purger,
         private readonly RequestMutator $mutator,
         private readonly DatabaseTrap $databaseTrap,
+        private readonly PdoProvider $database,
     ) {
     }
 
@@ -87,7 +89,8 @@ final class Kernel
     private static function assemble(): self
     {
         $paths = DataPaths::forCurrentSite();
-        $config = new ConfigStore($paths);
+        $database = new CorePdoProvider();
+        $config = new ConfigStore($paths, $database, XOOPS_DB_PREFIX);
         $responder = new ExitResponder();
         $filters = new FilterHandler($config, $responder, dirname(__DIR__));
 
@@ -95,7 +98,7 @@ final class Kernel
             $paths,
             $config,
             $responder,
-            new AuditLog($config, new CorePdoProvider(), XOOPS_DB_PREFIX),
+            new AuditLog($config, $database, XOOPS_DB_PREFIX),
             $filters,
             new BanList($paths),
             new GroupOneIpList($paths),
@@ -105,6 +108,7 @@ final class Kernel
             new SessionPurger($filters, $responder),
             new RequestMutator(),
             new DatabaseTrap($config),
+            $database,
         );
     }
 
@@ -146,7 +150,7 @@ final class Kernel
         $this->postchecked = true;
 
         $this->warnWhenDataDirectoryIsNotWritable();
-        $this->refreshConfigFromDatabase();
+        $this->config->refreshFromDatabase();
 
         $config = $this->config->current();
 
@@ -368,17 +372,6 @@ final class Kernel
         }
     }
 
-    private function refreshConfigFromDatabase(): void
-    {
-        $connection = \Icms\Db\Factory::instance()->conn;
-
-        if (empty($connection)) {
-            return;
-        }
-
-        $this->config->refreshFromDatabase();
-    }
-
     private function refuseGroupOneAdministratorOutsideAllowedIps(Visitor $visitor): void
     {
         if (!$visitor->isInGroup(1)) {
@@ -517,11 +510,16 @@ final class Kernel
         $this->filters->execute('postcommon_post');
     }
 
+    private function accessRepository(): AccessRepository
+    {
+        return new AccessRepository($this->database, XOOPS_DB_PREFIX);
+    }
+
     private function dosGuard(ProtectorConfig $config): DosGuard
     {
         return new DosGuard(
             $config,
-            new AccessRepository(),
+            $this->accessRepository(),
             $this->bandwidth,
             $this->banList,
             $this->htaccess,
@@ -533,7 +531,7 @@ final class Kernel
 
     private function bruteForceGuard(ProtectorConfig $config): BruteForceGuard
     {
-        return new BruteForceGuard($config, new AccessRepository(), $this->banList, $this->filters, $this->log, $this->responder);
+        return new BruteForceGuard($config, $this->accessRepository(), $this->banList, $this->filters, $this->log, $this->responder);
     }
 
     private function define(string $constant): void

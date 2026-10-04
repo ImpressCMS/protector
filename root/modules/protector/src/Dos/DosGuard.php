@@ -43,11 +43,7 @@ final class DosGuard
             return;
         }
 
-        if (!$this->access->purgeExpired()) {
-            $this->inspected = true;
-
-            return;
-        }
+        $this->access->collectGarbage();
 
         $uri = ServerRequest::uri();
         $timeToLive = $this->config->int('dos_expire');
