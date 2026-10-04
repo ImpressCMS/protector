@@ -22,9 +22,10 @@ final class IdValueSanitiser
             }
 
             $clean = (string) preg_replace('/[^0-9a-zA-Z_-]/', '', (string) $value);
+            $requestFollows = isset($_REQUEST[$key]) && $_REQUEST[$key] == $value;
             $source[$key] = $clean;
 
-            if (($_REQUEST[$key] ?? null) == $source[$key]) {
+            if ($requestFollows) {
                 $_REQUEST[$key] = $clean;
             }
         }

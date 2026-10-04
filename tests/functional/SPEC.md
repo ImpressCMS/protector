@@ -210,6 +210,8 @@ composer test:functional            # about 100 seconds
 | SAN-19 | the visitor's address matches "reliable IPs" | a request carries "../../etc/passwd" | the value is passed on unchanged |  |
 | SAN-20 | "force integer on *id parameters" off | a request carries topic_id=12abc;-- | the value is passed on unchanged |  |
 | SAN-21 | "force integer on *id parameters" on | a request carries topic_id=12abc;-- and name=zz | only characters [0-9a-zA-Z_-] remain in the *id parameter; other parameters are untouched |  |
+| SAN-23 | "force integer on *id parameters" on | a request carries topic_id=12abc;-- | the combined request array holds the same cleaned value as the query string (D12) |  |
+| SAN-24 | "../" elimination on | a request carries "../../etc/passwd" | the combined request array holds the same rewritten value as the query string (D12) |  |
 | SAN-22 | Protector switched off globally | requests carry a NUL byte, an isolated comment and a UNION | all values are passed on unchanged and nothing is logged |  |
 
 ## Session And Group Access
@@ -253,4 +255,4 @@ These scenarios assert today's behaviour although it is a defect. They are the o
 | **D10** | the request ends in purge() before the postcheck stage that would register the ban | SAN-04 |
 | **D11** | the HTMLPurifier filters call Icms\Core\HTMLFilter::htmlpurify(), which no longer exists | FLT-06 |
 
-_124 scenarios generated from the test attributes by `php tests/functional/bin/spec.php`._
+_126 scenarios generated from the test attributes by `php tests/functional/bin/spec.php`._

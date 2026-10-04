@@ -243,6 +243,28 @@ final class RequestSanitisingTest extends SiteTestCase
         $this->assertSame('zz;--', $response->json()['get']['name']);
     }
 
+    #[Scenario('SAN-23', '"force integer on *id parameters" on', 'a request carries topic_id=12abc;--', 'the combined request array holds the same cleaned value as the query string (D12)')]
+    public function testRequestArrayFollowsTheCleanedIdParameter(): void
+    {
+        $this->configure(['id_forceintval' => 1]);
+
+        $json = $this->probe($this->client(), ['topic_id' => '12abc;--'])->json();
+
+        $this->assertSame('12abc--', $json['get']['topic_id']);
+        $this->assertSame('12abc--', $json['request']['topic_id']);
+    }
+
+    #[Scenario('SAN-24', '"../" elimination on', 'a request carries "../../etc/passwd"', 'the combined request array holds the same rewritten value as the query string (D12)')]
+    public function testRequestArrayFollowsTheRewrittenTraversal(): void
+    {
+        $this->configure(['log_level' => 0]);
+
+        $json = $this->client()->get('/probe.php?file=' . urlencode('../../etc/passwd'))->json();
+
+        $this->assertSame('../../etc/passwd .', $json['get']['file']);
+        $this->assertSame('../../etc/passwd .', $json['request']['file']);
+    }
+
     #[Scenario('SAN-22', 'Protector switched off globally', 'requests carry a NUL byte, an isolated comment and a UNION', 'all values are passed on unchanged and nothing is logged')]
     public function testGloballyDisabledProtectorChangesNothing(): void
     {
