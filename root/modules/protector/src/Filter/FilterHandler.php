@@ -48,6 +48,11 @@ class FilterHandler
         return $result;
     }
 
+    private function isPlainFilterFile(string $file): bool
+    {
+        return preg_match('/^[A-Za-z0-9_]+\.php$/', $file) === 1;
+    }
+
     /** @return array<int, array{file: string, base: string}> */
     private function filesFor(string $type): array
     {
@@ -59,7 +64,7 @@ class FilterHandler
                 $file .= '.php';
             }
 
-            if (str_starts_with($file, $prefix)) {
+            if (str_starts_with($file, $prefix) && $this->isPlainFilterFile($file)) {
                 $filters[] = ['file' => $file, 'base' => "{$this->moduleDirectory}/filters_byconfig"];
             }
         }
@@ -68,7 +73,7 @@ class FilterHandler
         $handle = opendir($enabled);
 
         while (($file = readdir($handle)) !== false) {
-            if (str_starts_with($file, $prefix)) {
+            if (str_starts_with($file, $prefix) && $this->isPlainFilterFile($file)) {
                 $filters[] = ['file' => $file, 'base' => $enabled];
             }
         }
