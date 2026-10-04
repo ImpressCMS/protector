@@ -17,7 +17,7 @@ final class BandwidthLimiter
 
     public function expiresAt(): int
     {
-        $lines = @file($this->paths->bandwidthLimit());
+        $lines = @file($this->paths->forReading($this->paths->bandwidthLimit()));
 
         return min((int) ($lines[0] ?? 0), time() + self::MAXIMUM_SECONDS);
     }

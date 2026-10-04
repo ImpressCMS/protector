@@ -34,9 +34,23 @@ final class StorageTest extends UnitTestCase
         $this->assertSame([$path], glob($this->directory . '/state*'));
     }
 
-    public function testAtomicWriteFailsWhenTheDirectoryDoesNotExist(): void
+    public function testAtomicWriteCreatesMissingDirectories(): void
     {
-        $this->assertFalse(AtomicFile::write($this->directory . '/missing/state', 'x'));
+        $path = $this->directory . '/nested/deeper/state';
+
+        $this->assertTrue(AtomicFile::write($path, 'x'));
+        $this->assertSame('x', file_get_contents($path));
+
+        unlink($path);
+        rmdir($this->directory . '/nested/deeper');
+        rmdir($this->directory . '/nested');
+    }
+
+    public function testAtomicWriteFailsWhenTheDirectoryCannotBeCreated(): void
+    {
+        file_put_contents($this->directory . '/plainfile', 'x');
+
+        $this->assertFalse(AtomicFile::write($this->directory . '/plainfile/state', 'x'));
     }
 
     public function testStoredArraysNeverInstantiateObjects(): void

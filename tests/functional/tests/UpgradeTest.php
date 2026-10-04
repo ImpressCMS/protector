@@ -35,6 +35,48 @@ final class UpgradeTest extends SiteTestCase
     #[Scenario('LIF-08', 'a site running the previous release (branch 5.2) with a changed preference, a log record and a banned address', 'the current files are copied over the installation without removing anything and the administrator runs "update" for the module', 'preferences, log record and ban list are kept; the banned address is still blocked; checks, SQL trap and both admin pages work with the new code')]
     public function testUpgradeFromThePreviousRelease(): void
     {
+        $this->upgradeFromThePreviousRelease();
+        $pdo = self::config()->pdo(self::config()->get('DB_NAME'));
+        $prefix = self::config()->get('DB_PREFIX');
+
+        $this->assertSame('777', $this->preference('bf_count'));
+        $this->assertSame(33, (int) $pdo->query("SELECT COUNT(*) FROM `{$prefix}_config` WHERE conf_title LIKE '\\_MI\\_PROTECTOR%'")->fetchColumn());
+        $this->assertSame(1, (int) $pdo->query("SELECT COUNT(*) FROM `{$prefix}_protector_log` WHERE type = 'OLDROW'")->fetchColumn());
+
+        $banned = $this->probe($this->client('127.0.0.50'));
+        $this->assertStringContainsString('You are registered as BAD_IP by Protector.', $banned->body);
+
+        $served = $this->probe($this->client('127.0.0.2'), ['cid' => ',password /*']);
+        $this->assertTrue($this->isServed($served));
+        $this->assertContains('ISOCOM', $this->logTypes());
+
+        $trap = $this->client('127.0.0.3')->get('/sqlq.php', ['q' => '1 UNION SELECT 1']);
+        $this->assertStringContainsString('SQL Injection found', $trap->body);
+
+        $admin = $this->admin();
+        $start = $admin->page('/modules/protector/admin/index.php');
+        $advisory = $admin->page('/modules/protector/admin/index.php', ['page' => 'advisory']);
+        $this->assertStringContainsString('OLDROW', $start->body);
+        $this->assertStringContainsString('allow_url_fopen', $advisory->body);
+    }
+
+    #[Scenario('LIF-11', 'a site running the previous release (branch 5.2) with a banned address, its state files in the old data directory', 'the current files are copied over the installation and the administrator runs "update" for the module', 'the state files have moved to the new data directory, the old ones are gone, the access table has the composite index and the banned address is still blocked')]
+    public function testUpgradeMovesTheDataFilesAndAddsTheIndex(): void
+    {
+        $this->upgradeFromThePreviousRelease();
+        $pdo = self::config()->pdo(self::config()->get('DB_NAME'));
+        $prefix = self::config()->get('DB_PREFIX');
+
+        $this->assertNotNull(self::layout()->badIpsFile());
+        $this->assertNotNull(self::layout()->configCacheFile());
+        $this->assertSame([], glob(self::layout()->legacyDataDir() . '/badips*') ?: []);
+        $this->assertSame([], glob(self::layout()->legacyDataDir() . '/configcache*') ?: []);
+        $this->assertGreaterThan(0, (int) $pdo->query("SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = '{$prefix}_protector_access' AND index_name = 'ip_uri_expire'")->fetchColumn());
+        $this->assertStringContainsString('You are registered as BAD_IP by Protector.', $this->probe($this->client('127.0.0.50'))->body);
+    }
+
+    private function upgradeFromThePreviousRelease(): void
+    {
         $this->exported = $this->exportPreviousRelease();
         $pdo = self::config()->pdo(self::config()->get('DB_NAME'));
         $prefix = self::config()->get('DB_PREFIX');
@@ -60,26 +102,6 @@ final class UpgradeTest extends SiteTestCase
         sleep(4);
 
         $this->admin()->updateModule('protector');
-
-        $this->assertSame('777', $this->preference('bf_count'));
-        $this->assertSame(33, (int) $pdo->query("SELECT COUNT(*) FROM `{$prefix}_config` WHERE conf_title LIKE '\\_MI\\_PROTECTOR%'")->fetchColumn());
-        $this->assertSame(1, (int) $pdo->query("SELECT COUNT(*) FROM `{$prefix}_protector_log` WHERE type = 'OLDROW'")->fetchColumn());
-
-        $banned = $this->probe($this->client('127.0.0.50'));
-        $this->assertStringContainsString('You are registered as BAD_IP by Protector.', $banned->body);
-
-        $served = $this->probe($this->client('127.0.0.2'), ['cid' => ',password /*']);
-        $this->assertTrue($this->isServed($served));
-        $this->assertContains('ISOCOM', $this->logTypes());
-
-        $trap = $this->client('127.0.0.3')->get('/sqlq.php', ['q' => '1 UNION SELECT 1']);
-        $this->assertStringContainsString('SQL Injection found', $trap->body);
-
-        $admin = $this->admin();
-        $start = $admin->page('/modules/protector/admin/index.php');
-        $advisory = $admin->page('/modules/protector/admin/index.php', ['page' => 'advisory']);
-        $this->assertStringContainsString('OLDROW', $start->body);
-        $this->assertStringContainsString('allow_url_fopen', $advisory->body);
     }
 
     private function exportPreviousRelease(): string

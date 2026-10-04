@@ -20,7 +20,7 @@ final class BanList
     /** @return array<string, int> */
     public function entries(): array
     {
-        $lines = @file($this->paths->badIps());
+        $lines = @file($this->paths->forReading($this->paths->badIps()));
         $payload = $lines === false ? '' : (string) ($lines[0] ?? '');
         $entries = StoredArray::decode($payload);
 

@@ -16,6 +16,10 @@ with a **known defect** may change, and only in the phase that fixes that defect
   `LIF-08` (upgrade from the previous release); no existing assertion was changed.
 * **Phase 2** (decomposition of the `Protector` class into `Kernel`, guards and services) changed no row of this
   document and no assertion. The only edit to the suite is this note.
+* **Phase 5** (install, update, manifest, data directory) changed no assertion. The layout adapter now points to the new
+  data directory (`ICMS_TRUST_PATH/cache/protector`), LIF-08's installation prelude was extracted into a helper (its
+  assertions are untouched), and scenarios **LIF-10** (fresh install: data directory and access index) and **LIF-11**
+  (update from 5.2 moves the state files and adds the index) were added.
 * **Phase 4** (admin UI rebuilt with Smarty templates, handler classes and the core security service) changed two
   rows with your approval: **ADM-06** and **ADM-07** now use the core's token field (`protector_admin_REQUEST`) and the
   module's own refusal message instead of the `XOOPS_G_TICKET` field and the "GTicket Error" page. Their intent is

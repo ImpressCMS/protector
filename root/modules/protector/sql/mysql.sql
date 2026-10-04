@@ -1,4 +1,4 @@
-CREATE TABLE log (
+CREATE TABLE protector_log (
   lid mediumint(8) unsigned NOT NULL auto_increment,
   uid mediumint(8) unsigned NOT NULL default 0,
   ip varchar(255) NOT NULL default '0.0.0.0',
@@ -14,7 +14,7 @@ CREATE TABLE log (
   KEY (timestamp)
 );
 
-CREATE TABLE access (
+CREATE TABLE protector_access (
   ip varchar(255) NOT NULL default '0.0.0.0',
   request_uri varchar(255) NOT NULL default '',
   malicious_actions varchar(255) NOT NULL default '',
@@ -22,5 +22,6 @@ CREATE TABLE access (
   KEY (ip),
   KEY (request_uri),
   KEY (malicious_actions),
-  KEY (expire)
+  KEY (expire),
+  KEY ip_uri_expire (ip(45), request_uri(191), expire)
 );

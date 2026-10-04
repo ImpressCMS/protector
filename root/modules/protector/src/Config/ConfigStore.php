@@ -24,7 +24,7 @@ final class ConfigStore
         private readonly ?PdoProvider $database = null,
         private readonly string $tablePrefix = '',
     ) {
-        $this->cachedPayload = (string) @file_get_contents($this->paths->configCache());
+        $this->cachedPayload = (string) @file_get_contents($this->paths->forReading($this->paths->configCache()));
         $this->current = new ProtectorConfig(StoredArray::decode($this->cachedPayload) ?? []);
     }
 
@@ -55,7 +55,7 @@ final class ConfigStore
 
         $payload = StoredArray::encode($values);
 
-        if ($payload === $this->cachedPayload) {
+        if ($payload === $this->cachedPayload && is_file($this->paths->configCache())) {
             return true;
         }
 

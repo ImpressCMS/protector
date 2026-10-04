@@ -56,6 +56,11 @@ final class Layout
 
     public function dataDir(): string
     {
+        return $this->trustPath() . '/cache/protector';
+    }
+
+    public function legacyDataDir(): string
+    {
         return $this->liveTrustModuleDir() . '/configs';
     }
 

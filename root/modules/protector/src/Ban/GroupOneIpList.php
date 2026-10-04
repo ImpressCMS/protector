@@ -17,7 +17,7 @@ final class GroupOneIpList
     /** @return array<int|string, mixed> */
     public function entries(): array
     {
-        $lines = @file($this->paths->groupOneIps());
+        $lines = @file($this->paths->forReading($this->paths->groupOneIps()));
         $payload = $lines === false ? '' : (string) ($lines[0] ?? '');
         return StoredArray::decode($payload) ?? [];
     }
