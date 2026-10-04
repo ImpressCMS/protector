@@ -18,12 +18,12 @@ final class ServerRequest
 
     public static function uri(): string
     {
-        return (string) filter_var((string) ($_SERVER['REQUEST_URI'] ?? ''), FILTER_SANITIZE_STRING);
+        return TextSanitiser::sanitise($_SERVER['REQUEST_URI'] ?? '');
     }
 
     public static function userAgent(): string
     {
-        return (string) filter_var((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''), FILTER_SANITIZE_STRING);
+        return TextSanitiser::sanitise($_SERVER['HTTP_USER_AGENT'] ?? '');
     }
 
     public static function rawUserAgent(): string
