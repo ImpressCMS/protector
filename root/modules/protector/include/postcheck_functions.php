@@ -4,8 +4,8 @@ function protector_postcommon() {
 	global $xoopsModule;
 
 	// configs writable check
-	if (@$_SERVER['REQUEST_URI'] == '/admin.php' && !is_writable(dirname(__DIR__) . '/configs')) {
-		trigger_error('You should turn the directory ' . dirname(__DIR__) . '/configs writable', E_USER_WARNING);
+	if (@$_SERVER['REQUEST_URI'] == '/admin.php' && !is_writable(ICMS_TRUST_PATH . '/modules/protector/configs')) {
+		trigger_error('You should turn the directory ' . ICMS_TRUST_PATH . '/modules/protector/configs writable', E_USER_WARNING);
 	}
 
 	// Protector object

@@ -1,23 +1,8 @@
 <?php
-require_once __DIR__ . '/precheck_functions.php';
-
-if (in_array('Icms\Db\Legacy\Factory', get_declared_classes())) {
-	require __DIR__ . '/postcheck.inc.php';
-	return;
+// The preload shipped with ImpressCMS 2.1 still includes this file from the trust path.
+// The code now lives in the module directory; this file only forwards to it.
+$protector_precheck = ICMS_ROOT_PATH . '/modules/protector/include/precheck.inc.php';
+if (file_exists($protector_precheck)) {
+	require $protector_precheck;
 }
-
-define('PROTECTOR_PRECHECK_INCLUDED', 1);
-define('PROTECTOR_VERSION', file_get_contents(__DIR__ . '/version.txt'));
-
-// set $_SERVER['REQUEST_URI'] for IIS
-if (empty($_SERVER['REQUEST_URI'])) { // Not defined by IIS
-                                      // Under some configs, IIS makes SCRIPT_NAME point to php.exe :-(
-	if (!($_SERVER['REQUEST_URI'] = @$_SERVER['PHP_SELF'])) {
-		$_SERVER['REQUEST_URI'] = $_SERVER['SCRIPT_NAME'];
-	}
-	if (isset($_SERVER['QUERY_STRING'])) {
-		$_SERVER['REQUEST_URI'] .= '?' . $_SERVER['QUERY_STRING'];
-	}
-}
-
-protector_prepare();
+unset($protector_precheck);

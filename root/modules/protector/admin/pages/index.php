@@ -1,6 +1,6 @@
 <?php
 // PHP7 compliance
-require_once dirname(__DIR__) . '/class/gtickets.php';
+require_once dirname(__DIR__, 2) . '/class/gtickets.php';
 $myts = icms_core_Textsanitizer::getInstance();
 $db = icms_db_Factory::instance();
 
@@ -16,7 +16,7 @@ $num = empty($_GET['num']) ? 20 : (int) $_GET['num'];
 $log_table = $db->prefix($mydirname . "_log");
 
 // Protector object
-require_once dirname(__DIR__) . '/class/protector.php';
+require_once dirname(__DIR__, 2) . '/class/protector.php';
 
 $protector = Protector::getInstance($db->conn);
 $conf = $protector->getConf();
@@ -135,14 +135,14 @@ foreach ($num_array as $n) {
 
 // beggining of Output
 icms_cp_header();
-include __DIR__ . '/mymenu.php';
+include dirname(__DIR__) . '/mymenu.php';
 
 // title
 echo "<h3 style='text-align:" . _GLOBAL_LEFT . ";'>" . $xoopsModule->getVar('name') . "</h3>\n";
 
 // configs writable check
-if (!is_writable(dirname(__DIR__) . '/configs')) {
-	printf("<p style='color:red;font-weight:bold;'>" . _AM_FMT_CONFIGSNOTWRITABLE . "</p>\n", dirname(__DIR__) . '/configs');
+if (!is_writable(ICMS_TRUST_PATH . '/modules/protector/configs')) {
+	printf("<p style='color:red;font-weight:bold;'>" . _AM_FMT_CONFIGSNOTWRITABLE . "</p>\n", ICMS_TRUST_PATH . '/modules/protector/configs');
 }
 
 // bad_ips

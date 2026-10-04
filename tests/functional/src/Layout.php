@@ -81,7 +81,12 @@ final class Layout
 
     public function customFilterDir(): string
     {
-        return $this->liveTrustModuleDir() . '/filters_byconfig';
+        return $this->liveModuleDir() . '/filters_byconfig';
+    }
+
+    public function databaseTrapClassFile(): string
+    {
+        return $this->liveModuleDir() . '/class/ProtectorMysqlDatabase.class.php';
     }
 
     public function siteHtaccess(): string

@@ -48,7 +48,7 @@ final class EnablementTest extends SiteTestCase
     #[Scenario('ENA-04', 'the module installed from the repository on ImpressCMS 2.1', 'the database-trap class is compared with the core class it extends', 'its query() signature is compatible, so the trap can be loaded (S11 fixed)')]
     public function testDatabaseTrapSignatureIsCompatibleWithTheCore(): void
     {
-        $module = (string) file_get_contents(self::layout()->liveTrustModuleDir() . '/class/ProtectorMysqlDatabase.class.php');
+        $module = (string) file_get_contents(self::layout()->databaseTrapClassFile());
         $core = (string) file_get_contents(self::layout()->sitePath() . '/libraries/Icms/Db/Legacy/Mysql/Proxy.php');
 
         $this->assertStringContainsString('function query(string $sql, ?int $limit = 0, ?int $start = 0)', $module);

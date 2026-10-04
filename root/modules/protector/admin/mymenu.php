@@ -10,20 +10,9 @@ if (!is_object($xoopsModule)) die('$xoopsModule is not set');
 @define('_GLOBAL_LEFT', @_ADM_USE_RTL == 1 ? 'right' : 'left');
 @define('_GLOBAL_RIGHT', @_ADM_USE_RTL == 1 ? 'left' : 'right');
 
-// language files (modinfo.php)
-$language = empty($icmsConfig['language']) ? 'english' : $icmsConfig['language'];
-if (file_exists("$mydirpath/language/$language/modinfo.php")) {
-	// user customized language file
-	include_once "$mydirpath/language/$language/modinfo.php";
-} else if (file_exists("$mytrustdirpath/language/$language/modinfo.php")) {
-	// default language file
-	include_once "$mytrustdirpath/language/$language/modinfo.php";
-} else {
-	// fallback english
-	include_once "$mytrustdirpath/language/english/modinfo.php";
-}
+icms_loadLanguageFile('protector', 'modinfo');
 
-include dirname(__DIR__) . '/admin_menu.php';
+include __DIR__ . '/admin_menu.php';
 
 // preferences
 $config_handler = icms::handler('icms_config');

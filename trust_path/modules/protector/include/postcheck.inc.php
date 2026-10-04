@@ -1,11 +1,8 @@
 <?php
-require_once __DIR__ . '/postcheck_functions.php';
-
-if (!defined('PROTECTOR_PRECHECK_INCLUDED')) {
-	require __DIR__ . '/precheck.inc.php';
-	return;
+// The preload shipped with ImpressCMS 2.1 still includes this file from the trust path.
+// The code now lives in the module directory; this file only forwards to it.
+$protector_postcheck = ICMS_ROOT_PATH . '/modules/protector/include/postcheck.inc.php';
+if (file_exists($protector_postcheck)) {
+	require $protector_postcheck;
 }
-
-define('PROTECTOR_POSTCHECK_INCLUDED', 1);
-if (!class_exists('Icms\Db\Legacy\Factory')) return;
-protector_postcommon();
+unset($protector_postcheck);
