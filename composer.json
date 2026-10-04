@@ -15,6 +15,7 @@
         }
     },
     "scripts": {
+        "test:unit": "@php vendor/bin/phpunit -c tests/unit/phpunit.xml",
         "test:functional": "@php tests/functional/bin/run.php",
         "spec": "@php tests/functional/bin/spec.php",
         "site:install": "@php tests/functional/bin/site.php install",

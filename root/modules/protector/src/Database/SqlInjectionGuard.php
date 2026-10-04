@@ -2,9 +2,13 @@
 
 namespace ImpressCMS\Module\Protector\Database;
 
-use ImpressCMS\Module\Protector\Protector;
+use ImpressCMS\Module\Protector\Http\Responder;
+use ImpressCMS\Module\Protector\Kernel;
+use ImpressCMS\Module\Protector\Log\AuditLog;
 
 class SqlInjectionGuard extends \Icms\Db\Legacy\Mysql\Proxy {
+	private AuditLog $auditLog;
+	private Responder $exitResponder;
 	var $doubtful_requests = array ();
 	var $doubtful_needles = array (
 		// 'order by' ,
@@ -17,19 +21,18 @@ class SqlInjectionGuard extends \Icms\Db\Legacy\Mysql\Proxy {
 		'#',
 	);
 
-	function __construct() {
-		$protector = &Protector::getInstance();
-		$this->doubtful_requests = $protector->getDblayertrapDoubtfuls();
+	function __construct(?array $doubtfulValues = null, ?AuditLog $log = null, ?Responder $responder = null) {
+		$kernel = Kernel::boot();
+		$this->auditLog = $log ?? $kernel->auditLog();
+		$this->exitResponder = $responder ?? $kernel->responder();
+		$this->doubtful_requests = $doubtfulValues ?? $kernel->databaseTrap()->doubtfulValues();
 		$this->doubtful_needles = array_merge($this->doubtful_needles, $this->doubtful_requests);
 	}
 
 	function injectionFound($sql) {
-		$protector = &Protector::getInstance();
-
-		$protector->last_error_type = 'SQL Injection';
-		$protector->message .= $sql;
-		$protector->output_log($protector->last_error_type);
-		die('SQL Injection found');
+		$this->auditLog->noteIncident('SQL Injection', $sql);
+		$this->auditLog->write('SQL Injection');
+		$this->exitResponder->halt('SQL Injection found');
 	}
 
 	function separateStringsInSQL($sql) {

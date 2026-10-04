@@ -14,6 +14,8 @@ with a **known defect** may change, and only in the phase that fixes that defect
 * **Phase 1 layout move** (single module directory, namespaced classes). Only the layout adapter (`src/Layout.php`)
   changed, plus one hard-coded file path in `ENA-04` that now comes from the adapter. One scenario was **added**,
   `LIF-08` (upgrade from the previous release); no existing assertion was changed.
+* **Phase 2** (decomposition of the `Protector` class into `Kernel`, guards and services) changed no row of this
+  document and no assertion. The only edit to the suite is this note.
 
 ## Known defects still pinned
 
