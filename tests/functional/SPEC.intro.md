@@ -16,6 +16,11 @@ with a **known defect** may change, and only in the phase that fixes that defect
   `LIF-08` (upgrade from the previous release); no existing assertion was changed.
 * **Phase 2** (decomposition of the `Protector` class into `Kernel`, guards and services) changed no row of this
   document and no assertion. The only edit to the suite is this note.
+* **Phase 4** (admin UI rebuilt with Smarty templates, handler classes and the core security service) changed two
+  rows with your approval: **ADM-06** and **ADM-07** now use the core's token field (`protector_admin_REQUEST`) and the
+  module's own refusal message instead of the `XOOPS_G_TICKET` field and the "GTicket Error" page. Their intent is
+  unchanged: nothing is deleted without a valid token. Scenario **LIF-09** (templates registered once, removed on
+  uninstall) was added.
 * **Phase 3** (defect fixes) flipped the rows listed under "Known defects" below and added three scenarios. No other
   assertion changed.
 

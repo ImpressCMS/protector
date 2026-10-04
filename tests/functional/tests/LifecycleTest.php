@@ -163,4 +163,33 @@ final class LifecycleTest extends SiteTestCase
         $this->assertNotNull(self::layout()->configCacheFile());
         $this->assertGreaterThan(0, $response->json()['protector_conf_keys']);
     }
+
+    #[Scenario('LIF-09', 'the module is installed', 'it is updated, uninstalled and installed again in the control panel', 'its two admin templates are registered exactly once after the installation, the update and the reinstallation, and are removed by the uninstallation')]
+    public function testTemplatesAreRegisteredOnceAndRemovedOnUninstall(): void
+    {
+        $expected = ['protector_admin_advisory.html', 'protector_admin_index.html'];
+
+        $this->assertSame($expected, $this->templateNames());
+
+        $this->admin()->updateModule('protector');
+        $this->assertSame($expected, $this->templateNames());
+
+        $this->admin()->uninstallModule('protector');
+        $this->assertSame([], $this->templateNames());
+
+        $this->admin()->installModule('protector');
+        $this->assertSame($expected, $this->templateNames());
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function templateNames(): array
+    {
+        $prefix = self::config()->get('DB_PREFIX');
+
+        return self::config()->pdo(self::config()->get('DB_NAME'))
+            ->query("SELECT tpl_file FROM `{$prefix}_tplfile` WHERE tpl_module = 'protector' ORDER BY tpl_file")
+            ->fetchAll(\PDO::FETCH_COLUMN);
+    }
 }

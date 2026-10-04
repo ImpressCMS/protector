@@ -81,12 +81,12 @@ final class AdminPagesTest extends SiteTestCase
         $this->assertSame([], $this->logIds());
     }
 
-    #[Scenario('ADM-06', 'three log records exist', 'a delete-all form is submitted without its security ticket', 'nothing is deleted')]
+    #[Scenario('ADM-06', 'three log records exist', 'a delete-all form is submitted without its security token', 'nothing is deleted')]
     public function testSubmissionWithoutTicketChangesNothing(): void
     {
         $page = $this->admin->page(self::START_PAGE);
         $form = AdminSession::extractForm($page->body, 'MainForm');
-        unset($form['fields']['XOOPS_G_TICKET']);
+        unset($form['fields']['protector_admin_REQUEST']);
         $form['fields']['action'] = 'deleteall';
 
         $this->admin->client()->follow($this->admin->client()->post($page->url, $form['fields']));
@@ -94,17 +94,17 @@ final class AdminPagesTest extends SiteTestCase
         $this->assertSame([1, 2, 3], $this->logIds());
     }
 
-    #[Scenario('ADM-07', 'three log records exist', 'a delete-all form is submitted with an invalid ticket', 'a "GTicket Error" page offering to repost is shown and nothing is deleted')]
+    #[Scenario('ADM-07', 'three log records exist', 'a delete-all form is submitted with an invalid security token', 'a refusal message is shown and nothing is deleted')]
     public function testSubmissionWithInvalidTicketIsRefused(): void
     {
         $page = $this->admin->page(self::START_PAGE);
         $form = AdminSession::extractForm($page->body, 'MainForm');
-        $form['fields']['XOOPS_G_TICKET'] = 'not-a-valid-ticket';
+        $form['fields']['protector_admin_REQUEST'] = 'not-a-valid-token';
         $form['fields']['action'] = 'deleteall';
 
         $response = $this->admin->client()->follow($this->admin->client()->post($page->url, $form['fields']));
 
-        $this->assertStringContainsString('GTicket Error', $response->body);
+        $this->assertStringContainsString('The security token is missing, invalid or expired', $response->body);
         $this->assertSame([1, 2, 3], $this->logIds());
     }
 

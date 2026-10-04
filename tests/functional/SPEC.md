@@ -16,6 +16,11 @@ with a **known defect** may change, and only in the phase that fixes that defect
   `LIF-08` (upgrade from the previous release); no existing assertion was changed.
 * **Phase 2** (decomposition of the `Protector` class into `Kernel`, guards and services) changed no row of this
   document and no assertion. The only edit to the suite is this note.
+* **Phase 4** (admin UI rebuilt with Smarty templates, handler classes and the core security service) changed two
+  rows with your approval: **ADM-06** and **ADM-07** now use the core's token field (`protector_admin_REQUEST`) and the
+  module's own refusal message instead of the `XOOPS_G_TICKET` field and the "GTicket Error" page. Their intent is
+  unchanged: nothing is deleted without a valid token. Scenario **LIF-09** (templates registered once, removed on
+  uninstall) was added.
 * **Phase 3** (defect fixes) flipped the rows listed under "Known defects" below and added three scenarios. No other
   assertion changed.
 
@@ -74,8 +79,8 @@ composer test:functional            # about 100 seconds
 | ADM-03 | three log records exist | the administrator ticks records 1 and 3 and submits "Remove" | those two records are deleted and record 2 remains |  |
 | ADM-04 | three log records exist, two of them with the same address and type | the administrator submits "Compact log" | duplicates are removed keeping the newest of each address/type pair |  |
 | ADM-05 | three log records exist | the administrator submits "Remove all" | the log is empty |  |
-| ADM-06 | three log records exist | a delete-all form is submitted without its security ticket | nothing is deleted |  |
-| ADM-07 | three log records exist | a delete-all form is submitted with an invalid ticket | a "GTicket Error" page offering to repost is shown and nothing is deleted |  |
+| ADM-06 | three log records exist | a delete-all form is submitted without its security token | nothing is deleted |  |
+| ADM-07 | three log records exist | a delete-all form is submitted with an invalid security token | a refusal message is shown and nothing is deleted |  |
 | ADM-08 | three log records exist | a guest opens the admin start page | access is refused with "only admin can access this area" |  |
 | ADM-09 | default preferences | the administrator opens the advisory page | it lists the security advisories (trust path, allow_url_fopen, session.use_trans_sid, database prefix, mainfile and database layer patches) and the two attack-simulation links |  |
 | ADM-10 | default preferences | the administrator opens the module's admin pages | the admin menu offers the start page, the advisory page and the preferences page |  |
@@ -159,6 +164,7 @@ composer test:functional            # about 100 seconds
 | LIF-05 | the module was uninstalled | the administrator installs it again | the module, its 33 preferences, both tables and the preload file are back |  |
 | LIF-06 | a preference was changed to a non-default value and a log record exists | the administrator runs "update" for the module in the control panel | the changed preference, all 33 preferences and the log record are still there |  |
 | LIF-07 | the module is installed and active | an ordinary page is requested | the page is served and Protector's runtime preference cache has been written in the module's data directory |  |
+| LIF-09 | the module is installed | it is updated, uninstalled and installed again in the control panel | its two admin templates are registered exactly once after the installation, the update and the reinstallation, and are removed by the uninstallation |  |
 
 ## Log Record
 
@@ -259,4 +265,4 @@ These scenarios assert today's behaviour although it is a defect. They are the o
 | Defect | Pinned behaviour | Scenarios |
 |---|---|---|
 
-_127 scenarios generated from the test attributes by `php tests/functional/bin/spec.php`._
+_128 scenarios generated from the test attributes by `php tests/functional/bin/spec.php`._
