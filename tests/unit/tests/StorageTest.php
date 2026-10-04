@@ -7,7 +7,9 @@ namespace ImpressCMS\Module\Protector\Tests\Unit;
 use ImpressCMS\Module\Protector\Ban\BanList;
 use ImpressCMS\Module\Protector\Ban\GroupOneIpList;
 use ImpressCMS\Module\Protector\Dos\BandwidthLimiter;
+use ImpressCMS\Module\Protector\Storage\AtomicFile;
 use ImpressCMS\Module\Protector\Storage\DataPaths;
+use ImpressCMS\Module\Protector\Storage\StoredArray;
 
 final class StorageTest extends UnitTestCase
 {
@@ -19,6 +21,40 @@ final class StorageTest extends UnitTestCase
         $this->assertSame('/data/group1ips' . 'abc123', $paths->groupOneIps());
         $this->assertSame('/data/bwlimit' . 'abc123', $paths->bandwidthLimit());
         $this->assertSame('/data/configcache' . 'abc123', $paths->configCache());
+    }
+
+    public function testAtomicWriteReplacesTheFileAndLeavesNoTemporaryFile(): void
+    {
+        $path = $this->directory . '/state';
+
+        $this->assertTrue(AtomicFile::write($path, 'first'));
+        $this->assertTrue(AtomicFile::write($path, 'second'));
+
+        $this->assertSame('second', file_get_contents($path));
+        $this->assertSame([$path], glob($this->directory . '/state*'));
+    }
+
+    public function testAtomicWriteFailsWhenTheDirectoryDoesNotExist(): void
+    {
+        $this->assertFalse(AtomicFile::write($this->directory . '/missing/state', 'x'));
+    }
+
+    public function testStoredArraysNeverInstantiateObjects(): void
+    {
+        $payload = serialize(['safe' => 1, 'object' => new \ArrayObject([1])]);
+
+        $decoded = StoredArray::decode($payload);
+
+        $this->assertSame(1, $decoded['safe']);
+        $this->assertInstanceOf(\__PHP_Incomplete_Class::class, $decoded['object']);
+    }
+
+    public function testStoredArrayRejectsNonArraysAndGarbage(): void
+    {
+        $this->assertNull(StoredArray::decode(''));
+        $this->assertNull(StoredArray::decode('garbage'));
+        $this->assertNull(StoredArray::decode(serialize('text')));
+        $this->assertSame([1, 2], StoredArray::decode(StoredArray::encode([1, 2]) . "\n"));
     }
 
     public function testBanListIsEmptyWithoutAFile(): void

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace ImpressCMS\Module\Protector\Config;
 
+use ImpressCMS\Module\Protector\Storage\AtomicFile;
 use ImpressCMS\Module\Protector\Storage\DataPaths;
+use ImpressCMS\Module\Protector\Storage\StoredArray;
 
 final class ConfigStore
 {
@@ -17,8 +19,7 @@ final class ConfigStore
     public function __construct(private readonly DataPaths $paths)
     {
         $this->cachedPayload = (string) @file_get_contents($this->paths->configCache());
-        $values = @unserialize($this->cachedPayload);
-        $this->current = new ProtectorConfig(is_array($values) ? $values : []);
+        $this->current = new ProtectorConfig(StoredArray::decode($this->cachedPayload) ?? []);
     }
 
     public function current(): ProtectorConfig
@@ -48,9 +49,7 @@ final class ConfigStore
             return true;
         }
 
-        $handle = fopen($this->paths->configCache(), 'w');
-        fwrite($handle, $payload);
-        fclose($handle);
+        AtomicFile::write($this->paths->configCache(), $payload);
         $this->current = new ProtectorConfig($values);
 
         return true;

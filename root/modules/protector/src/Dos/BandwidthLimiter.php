@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ImpressCMS\Module\Protector\Dos;
 
+use ImpressCMS\Module\Protector\Storage\AtomicFile;
 use ImpressCMS\Module\Protector\Storage\DataPaths;
 
 final class BandwidthLimiter
@@ -28,17 +29,6 @@ final class BandwidthLimiter
 
     public function limitUntil(int $expire): bool
     {
-        $handle = @fopen($this->paths->bandwidthLimit(), 'w');
-
-        if (!$handle) {
-            return false;
-        }
-
-        @flock($handle, LOCK_EX);
-        fwrite($handle, min($expire, time() + self::MAXIMUM_SECONDS) . "\n");
-        @flock($handle, LOCK_UN);
-        fclose($handle);
-
-        return true;
+        return AtomicFile::write($this->paths->bandwidthLimit(), min($expire, time() + self::MAXIMUM_SECONDS) . "\n");
     }
 }
