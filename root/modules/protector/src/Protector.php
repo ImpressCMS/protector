@@ -1,5 +1,9 @@
 <?php
 
+namespace ImpressCMS\Module\Protector;
+
+use ImpressCMS\Module\Protector\Filter\FilterHandler;
+
 class Protector {
 	var $mydirname;
 	var $_conn = null;
@@ -101,7 +105,7 @@ class Protector {
 	function updateConfIntoDb($name, $value) {
 		$constpref = '_MI_' . strtoupper($this->mydirname);
 
-		icms::$xoopsDB->queryF("UPDATE `" . icms::$xoopsDB->prefix("config") . "` SET `conf_value`='" . addslashes($value) . "' WHERE `conf_title` like '" . $constpref . "%' AND `conf_name`='" . addslashes($name) . "' LIMIT 1");
+		\icms::$xoopsDB->queryF("UPDATE `" . \icms::$xoopsDB->prefix("config") . "` SET `conf_value`='" . addslashes($value) . "' WHERE `conf_title` like '" . $constpref . "%' AND `conf_name`='" . addslashes($name) . "' LIMIT 1");
 		$this->updateConfFromDB();
 	}
 
@@ -110,12 +114,12 @@ class Protector {
 
 		if (empty($this->_conn)) return false;
 
-		$result = icms::$xoopsDB->queryF("SELECT conf_name,conf_value FROM " . XOOPS_DB_PREFIX . "_config WHERE conf_title like '" . $constpref . "%'");
-		if (!$result || icms::$xoopsDB->getRowsNum($result) < 5) {
+		$result = \icms::$xoopsDB->queryF("SELECT conf_name,conf_value FROM " . XOOPS_DB_PREFIX . "_config WHERE conf_title like '" . $constpref . "%'");
+		if (!$result || \icms::$xoopsDB->getRowsNum($result) < 5) {
 			return false;
 		}
 		$db_conf = array();
-		while (list($key, $val) = icms::$xoopsDB->fetchRow($result)) {
+		while (list($key, $val) = \icms::$xoopsDB->fetchRow($result)) {
 			$db_conf[$key] = $val;
 		}
 		$db_conf_serialized = serialize($db_conf);
@@ -178,10 +182,10 @@ class Protector {
 		// do we even need this on 1.4?
 		if (empty($this->_conn)) {
 			// $this->_conn = @mysql_connect( XOOPS_DB_HOST , XOOPS_DB_USER , XOOPS_DB_PASS ) ;
-			// $this->_conn = icms::$db; // PDO
-			// $this->_conn = icms::$xoopsDB; // non-PDO or PDO
+			// $this->_conn = \icms::$db; // PDO
+			// $this->_conn = \icms::$xoopsDB; // non-PDO or PDO
 			// if( ! $this->_conn ) die( 'db connection failed.' ) ;
-			if (!icms::$xoopsDB) die('No DB connection');
+			if (!\icms::$xoopsDB) die('No DB connection');
 			// if( ! mysql_select_db( XOOPS_DB_NAME , $this->_conn ) ) die( 'db selection failed.' ) ;
 		}
 		// --
@@ -192,15 +196,15 @@ class Protector {
 		// --
 
 		if ($unique_check) {
-			$result = icms::$xoopsDB->queryF('SELECT ip,type FROM ' . XOOPS_DB_PREFIX . '_' . $this->mydirname . '_log ORDER BY timestamp DESC LIMIT 1');
-			list($last_ip, $last_type) = icms::$xoopsDB->fetchRow($result);
+			$result = \icms::$xoopsDB->queryF('SELECT ip,type FROM ' . XOOPS_DB_PREFIX . '_' . $this->mydirname . '_log ORDER BY timestamp DESC LIMIT 1');
+			list($last_ip, $last_type) = \icms::$xoopsDB->fetchRow($result);
 			if ($last_ip == $ip && $last_type == $type) {
 				$this->_logged = true;
 				return true;
 			}
 		}
 
-		icms::$xoopsDB->queryF("INSERT INTO " . XOOPS_DB_PREFIX . "_" . $this->mydirname . "_log SET ip='" . $ip . "',agent='" . $agent . "',type='" . addslashes($type) . "',description='" . addslashes($this->message) . "',uid='" . (int) $uid . "',timestamp=NOW()");
+		\icms::$xoopsDB->queryF("INSERT INTO " . XOOPS_DB_PREFIX . "_" . $this->mydirname . "_log SET ip='" . $ip . "',agent='" . $agent . "',type='" . addslashes($type) . "',description='" . addslashes($this->message) . "',uid='" . (int) $uid . "',timestamp=NOW()");
 		$this->_logged = true;
 		return true;
 	}
@@ -418,7 +422,7 @@ class Protector {
 
 		if (!empty($this->_dblayertrap_doubtfuls) || $force_override) {
 			@define('XOOPS_DB_ALTERNATIVE', 'ProtectorMysqlDatabase');
-			require_once dirname(__DIR__) . '/class/ProtectorMysqlDatabase.class.php';
+			class_exists(Database\SqlInjectionGuard::class);
 		}
 	}
 
@@ -719,7 +723,7 @@ class Protector {
 		if (empty($ip4sql) || $ip4sql == '') return true;
 
 		// gargage collection
-		$result = icms::$xoopsDB->queryF("DELETE FROM " . icms::$xoopsDB->prefix($this->mydirname . "_access") . " WHERE expire < UNIX_TIMESTAMP()");
+		$result = \icms::$xoopsDB->queryF("DELETE FROM " . \icms::$xoopsDB->prefix($this->mydirname . "_access") . " WHERE expire < UNIX_TIMESTAMP()");
 
 		// for older versions before updating this module
 		if ($result === false) {
@@ -728,27 +732,27 @@ class Protector {
 		}
 
 		// sql for recording access log (INSERT should be placed after SELECT)
-		$sql4insertlog = "INSERT INTO " . icms::$xoopsDB->prefix($this->mydirname . "_access") . " SET ip='$ip4sql',request_uri='$uri4sql',expire=UNIX_TIMESTAMP()+'" . (int) $this->_conf['dos_expire'] . "'";
+		$sql4insertlog = "INSERT INTO " . \icms::$xoopsDB->prefix($this->mydirname . "_access") . " SET ip='$ip4sql',request_uri='$uri4sql',expire=UNIX_TIMESTAMP()+'" . (int) $this->_conf['dos_expire'] . "'";
 
 		// bandwidth limitation
 		if (@$this->_conf['bwlimit_count'] >= 10) {
-			$result = icms::$xoopsDB->query("SELECT COUNT(*) FROM " . icms::$xoopsDB->prefix($this->mydirname . "_access"));
-			list($bw_count) = icms::$xoopsDB->fetchRow($result);
+			$result = \icms::$xoopsDB->query("SELECT COUNT(*) FROM " . \icms::$xoopsDB->prefix($this->mydirname . "_access"));
+			list($bw_count) = \icms::$xoopsDB->fetchRow($result);
 			if ($bw_count > $this->_conf['bwlimit_count']) {
 				$this->write_file_bwlimit(time() + $this->_conf['dos_expire']);
 			}
 		}
 
 		// F5 attack check (High load & same URI)
-		$result = icms::$xoopsDB->query("SELECT COUNT(*) FROM " . icms::$xoopsDB->prefix($this->mydirname . "_access") . " WHERE ip='$ip4sql' AND request_uri='$uri4sql'");
-		list($f5_count) = icms::$xoopsDB->fetchRow($result);
+		$result = \icms::$xoopsDB->query("SELECT COUNT(*) FROM " . \icms::$xoopsDB->prefix($this->mydirname . "_access") . " WHERE ip='$ip4sql' AND request_uri='$uri4sql'");
+		list($f5_count) = \icms::$xoopsDB->fetchRow($result);
 		if ($f5_count > $this->_conf['dos_f5count']) {
 
 			// delayed insert
-			icms::$xoopsDB->queryF($sql4insertlog);
+			\icms::$xoopsDB->queryF($sql4insertlog);
 
 			// extends the expires of the IP with 5 minutes at least (pending)
-			// $result = icms::$xoopsDB->queryF( "UPDATE ".icms::$xoopsDB->prefix($this->mydirname."_access")." SET expire=UNIX_TIMESTAMP()+300 WHERE ip='$ip4sql' AND expire<UNIX_TIMESTAMP()+300" ) ;
+			// $result = \icms::$xoopsDB->queryF( "UPDATE ".\icms::$xoopsDB->prefix($this->mydirname."_access")." SET expire=UNIX_TIMESTAMP()+300 WHERE ip='$ip4sql' AND expire<UNIX_TIMESTAMP()+300" ) ;
 
 			// call the filter first
 			$ret = $this->call_filter('f5attack_overrun');
@@ -788,11 +792,11 @@ class Protector {
 		}
 
 		// Crawler check (High load & different URI)
-		$result = icms::$xoopsDB->query("SELECT COUNT(*) FROM " . icms::$xoopsDB->prefix($this->mydirname . "_access") . " WHERE ip='$ip4sql'");
-		list($crawler_count) = icms::$xoopsDB->fetchRow($result);
+		$result = \icms::$xoopsDB->query("SELECT COUNT(*) FROM " . \icms::$xoopsDB->prefix($this->mydirname . "_access") . " WHERE ip='$ip4sql'");
+		list($crawler_count) = \icms::$xoopsDB->fetchRow($result);
 
 		// delayed insert
-		icms::$xoopsDB->queryF($sql4insertlog);
+		\icms::$xoopsDB->queryF($sql4insertlog);
 
 		if ($crawler_count > $this->_conf['dos_crcount']) {
 
@@ -841,14 +845,14 @@ class Protector {
 		$mal4sql = addslashes("BRUTE FORCE: $victim_uname");
 
 		// gargage collection
-		$result = icms::$xoopsDB->queryF("DELETE FROM " . icms::$xoopsDB->prefix($this->mydirname . "_access") . " WHERE expire < UNIX_TIMESTAMP()");
+		$result = \icms::$xoopsDB->queryF("DELETE FROM " . \icms::$xoopsDB->prefix($this->mydirname . "_access") . " WHERE expire < UNIX_TIMESTAMP()");
 
 		// sql for recording access log (INSERT should be placed after SELECT)
-		$sql4insertlog = "INSERT INTO " . icms::$xoopsDB->prefix($this->mydirname . "_access") . " SET ip='$ip4sql',request_uri='$uri4sql',malicious_actions='$mal4sql',expire=UNIX_TIMESTAMP()+600";
+		$sql4insertlog = "INSERT INTO " . \icms::$xoopsDB->prefix($this->mydirname . "_access") . " SET ip='$ip4sql',request_uri='$uri4sql',malicious_actions='$mal4sql',expire=UNIX_TIMESTAMP()+600";
 
 		// count check
-		$result = icms::$xoopsDB->query("SELECT COUNT(*) FROM " . icms::$xoopsDB->prefix($this->mydirname . "_access") . " WHERE ip='$ip4sql' AND malicious_actions like 'BRUTE FORCE:%'");
-		list($bf_count) = icms::$xoopsDB->fetchRow($result);
+		$result = \icms::$xoopsDB->query("SELECT COUNT(*) FROM " . \icms::$xoopsDB->prefix($this->mydirname . "_access") . " WHERE ip='$ip4sql' AND malicious_actions like 'BRUTE FORCE:%'");
+		list($bf_count) = \icms::$xoopsDB->fetchRow($result);
 		if ($bf_count > $this->_conf['bf_count']) {
 			$this->register_bad_ips(time() + $this->_conf['banip_time0']);
 			$this->last_error_type = 'BruteForce';
@@ -858,7 +862,7 @@ class Protector {
 			if ($ret == false) exit();
 		}
 		// delayed insert
-		icms::$xoopsDB->queryF($sql4insertlog);
+		\icms::$xoopsDB->queryF($sql4insertlog);
 	}
 
 	function _spam_check_point_recursive($val) {
@@ -989,8 +993,7 @@ class Protector {
 	}
 
 	function call_filter($type, $dying_message = '') {
-		require_once __DIR__ . '/ProtectorFilter.php';
-		$filter_handler = &ProtectorFilterHandler::getInstance();
+		$filter_handler = &FilterHandler::getInstance();
 		$ret = $filter_handler->execute($type);
 		if ($ret == false && $dying_message) {
 			die($dying_message);
@@ -999,3 +1002,5 @@ class Protector {
 		return $ret;
 	}
 }
+
+class_alias(Protector::class, 'Protector');

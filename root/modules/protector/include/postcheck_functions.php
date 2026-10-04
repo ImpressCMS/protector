@@ -9,7 +9,7 @@ function protector_postcommon() {
 	}
 
 	// Protector object
-	require_once dirname(__DIR__) . '/class/protector.php';
+	require_once dirname(__DIR__) . '/src/autoload.php';
 	$db = icms_db_Factory::instance();
 	$protector = &Protector::getInstance();
 	$protector->setConn($db->conn);

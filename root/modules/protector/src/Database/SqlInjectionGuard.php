@@ -1,6 +1,10 @@
 <?php
 
-class ProtectorMySQLDatabase extends icms_db_legacy_mysql_Proxy {
+namespace ImpressCMS\Module\Protector\Database;
+
+use ImpressCMS\Module\Protector\Protector;
+
+class SqlInjectionGuard extends \Icms\Db\Legacy\Mysql\Proxy {
 	var $doubtful_requests = array ();
 	var $doubtful_needles = array (
 		// 'order by' ,
@@ -147,3 +151,5 @@ class ProtectorMySQLDatabase extends icms_db_legacy_mysql_Proxy {
 		return $ret;
 	}
 }
+
+class_alias(SqlInjectionGuard::class, 'ProtectorMysqlDatabase');

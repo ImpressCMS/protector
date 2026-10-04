@@ -1,48 +1,25 @@
 <?php
 
-// Abstract of each filter classes
-class ProtectorFilterAbstract {
-	var $protector = null;
+namespace ImpressCMS\Module\Protector\Filter;
 
-	function __construct() {
-		$this->protector = &Protector::getInstance();
-		$lang = empty($GLOBALS['icmsConfig']['language']) ? @$this->protector->_conf['default_lang'] : $GLOBALS['icmsConfig']['language'];
-		@include_once dirname(__DIR__) . '/language/' . $lang . '/main.php';
-		if (!defined('_MD_PROTECTOR_YOUAREBADIP')) {
-			include_once dirname(__DIR__) . '/language/english/main.php';
-		}
-	}
-
-	function isMobile() {
-		if (class_exists('Wizin_User')) {
-			// WizMobile (gusagi)
-			$user = &Wizin_User::getSingleton();
-			return $user->bIsMobile;
-		} else if (defined('HYP_K_TAI_RENDER') && HYP_K_TAI_RENDER) {
-			// hyp_common ktai-renderer (nao-pon)
-			return true;
-		} else {
-			return false;
-		}
-	}
-}
+use ImpressCMS\Module\Protector\Protector;
 
 // Filter Handler class (singleton)
-class ProtectorFilterHandler {
+class FilterHandler {
 	var $protector = null;
 	var $filters_base = '';
 	var $filters_byconfig = '';
 
 	function __construct() {
 		$this->protector = &Protector::getInstance();
-		$this->filters_base = dirname(__DIR__) . '/filters_enabled';
-		$this->filters_byconfig = dirname(__DIR__) . '/filters_byconfig';
+		$this->filters_base = dirname(__DIR__, 2) . '/filters_enabled';
+		$this->filters_byconfig = dirname(__DIR__, 2) . '/filters_byconfig';
 	}
 
 	public static function &getInstance() {
 		static $instance;
 		if (!isset($instance)) {
-			$instance = new ProtectorFilterHandler();
+			$instance = new FilterHandler();
 		}
 		return $instance;
 	}
@@ -93,3 +70,5 @@ class ProtectorFilterHandler {
 		return $ret;
 	}
 }
+
+class_alias(FilterHandler::class, 'ProtectorFilterHandler');

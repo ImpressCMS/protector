@@ -5,7 +5,7 @@ function protector_prepare() {
 	if (defined('_INSTALL_CHARSET') && !defined("XOOPS_MAINFILE_INCLUDED")) die('To use installer, remove the following plugin first: /plugins/preload/protector.php');
 
 	// Protector class
-	require_once dirname(__DIR__) . '/class/protector.php';
+	require_once dirname(__DIR__) . '/src/autoload.php';
 
 	// Protector object
 	$protector = &Protector::getInstance();

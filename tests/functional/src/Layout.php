@@ -86,7 +86,7 @@ final class Layout
 
     public function databaseTrapClassFile(): string
     {
-        return $this->liveModuleDir() . '/class/ProtectorMysqlDatabase.class.php';
+        return $this->liveModuleDir() . '/src/Database/SqlInjectionGuard.php';
     }
 
     public function siteHtaccess(): string

@@ -1,6 +1,6 @@
 <?php
 // PHP7 compliance
-require_once dirname(__DIR__, 2) . '/class/gtickets.php';
+require_once dirname(__DIR__, 2) . '/include/gtickets.php';
 $myts = icms_core_Textsanitizer::getInstance();
 $db = icms_db_Factory::instance();
 
@@ -16,7 +16,7 @@ $num = empty($_GET['num']) ? 20 : (int) $_GET['num'];
 $log_table = $db->prefix($mydirname . "_log");
 
 // Protector object
-require_once dirname(__DIR__, 2) . '/class/protector.php';
+require_once dirname(__DIR__, 2) . '/src/autoload.php';
 
 $protector = Protector::getInstance($db->conn);
 $conf = $protector->getConf();
