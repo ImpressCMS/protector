@@ -14,6 +14,8 @@ with a **known defect** may change, and only in the phase that fixes that defect
 * **Phase 1 layout move** (single module directory, namespaced classes). Only the layout adapter (`src/Layout.php`)
   changed, plus one hard-coded file path in `ENA-04` that now comes from the adapter. One scenario was **added**,
   `LIF-08` (upgrade from the previous release); no existing assertion was changed.
+* **Phase 2** (decomposition of the `Protector` class into `Kernel`, guards and services) changed no row of this
+  document and no assertion. The only edit to the suite is this note.
 
 ## Known defects still pinned
 
@@ -86,8 +88,8 @@ composer test:functional            # about 100 seconds
 | BAN-07 | Protector is switched off globally and an address is on the bad-IP list | that address requests a page | it is still blocked (the list is enforced before the global switch is looked at) |  |
 | BAN-08 | the isolated-comment action bans, and the attacker is an administrator (group 1 is exempt from bans) | the administrator triggers it and then requests a page | the administrator is not banned but is logged out |  |
 | BAN-09 | a bad-IP filter that redirects is enabled ("precommon_badip_redirection") | a banned address requests a page | it is redirected to the configured address instead of seeing the message |  |
-| BAN-10 | the administrator saves a two-line "allowed IPs for group 1" list | the stored list is used on the administrator's next request | the list holds the line numbers instead of the addresses and the administrator is locked out | **D1** |
-| BAN-11 | the administrator saves a one-line "allowed IPs for group 1" list | the administrator requests a page | the restriction is not applied at all (the stored list is just "0"), so the feature cannot be used through the form | **D1** |
+| BAN-10 | the administrator saves a two-line "allowed IPs for group 1" list that contains the administrator's own address | the administrator requests a page from that address | the stored list holds the addresses, so the administrator is still served (D1 fixed) |  |
+| BAN-11 | the administrator saves a one-line "allowed IPs for group 1" list that does not contain the administrator's address | the administrator requests a page | the restriction is applied and the administrator is refused (D1 fixed) |  |
 
 ## Content Checks
 
@@ -247,7 +249,6 @@ These scenarios assert today's behaviour although it is a defect. They are the o
 
 | Defect | Pinned behaviour | Scenarios |
 |---|---|---|
-| **D1** | the form handler iterates array_keys() of the submitted lines instead of the lines | BAN-10, BAN-11 |
 | **D9** | events raised before the database service exists cannot be logged | FEA-03, SAN-01, SAN-13, SAN-16, UPL-02 |
 | **D10** | the request ends in purge() before the postcheck stage that would register the ban | SAN-04 |
 | **D11** | the HTMLPurifier filters call Icms\Core\HTMLFilter::htmlpurify(), which no longer exists | FLT-06 |

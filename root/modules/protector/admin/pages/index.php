@@ -45,28 +45,20 @@ if (!empty($_POST['action'])) {
 			}
 		}
 
-		array_filter($bad_ips);
 		if (!$protector->write_file_badips($bad_ips)) {
 			$error_msg .= _AM_MSG_BADIPSCANTOPEN;
 		}
 
-		$group1_ips = empty($_POST['group1_ips']) ? array () : explode("\n", trim($_POST['group1_ips']));
+		$group1_lines = empty($_POST['group1_ips']) ? array () : explode("\n", trim($_POST['group1_ips']));
 		$g1_ips = array ();
-		foreach (array_keys($group1_ips) as $i) {
-			$i = trim($i);
-			if (!preg_match('/[^0-9\.]/', $i) && strlen($i) < 16) {
-				$g1_ips[$i] = $i;
+		foreach ($group1_lines as $line) {
+			$ip = trim($line);
+			if ($ip !== '' && !preg_match('/[^0-9\.]/', $ip) && strlen($ip) < 16) {
+				$g1_ips[$ip] = $ip;
 			}
 		}
 
-		array_filter($g1_ips);
-		$fp = @fopen($protector->get_filepath4group1ips(), 'w');
-		if ($fp) {
-			@flock($fp, LOCK_EX);
-			fwrite($fp, serialize(array_unique($g1_ips)) . "\n");
-			@flock($fp, LOCK_UN);
-			fclose($fp);
-		} else {
+		if (!\ImpressCMS\Module\Protector\Kernel::boot()->groupOneIps()->write(array_values($g1_ips))) {
 			$error_msg .= _AM_MSG_GROUP1IPSCANTOPEN;
 		}
 
