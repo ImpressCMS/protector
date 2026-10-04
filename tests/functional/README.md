@@ -46,6 +46,11 @@ Reports are written to `tests/functional/reports/` (JUnit XML, test-dox text).
   Herd sites or databases.
 * **Windows**: `dirname('/x.php')` returns a backslash; the client normalises redirect targets accordingly.
 
+## Unit tests
+
+The new classes under `src/` that do not need a running site are covered by plain PHPUnit tests in `tests/unit/`
+(`composer test:unit`, under a second). They are supplementary: the functional suite stays the regression gate.
+
 ## Upgrade scenario (LIF-08)
 
 `UpgradeTest` exports the git ref `5.2` (the previous release) with `git archive`, installs it through the core

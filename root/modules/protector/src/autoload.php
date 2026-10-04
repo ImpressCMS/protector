@@ -12,7 +12,7 @@ if (!defined('PROTECTOR_AUTOLOAD_REGISTERED')) {
 
 	spl_autoload_register(static function (string $class): void {
 		static $legacy = array(
-			'protector' => 'Protector',
+			'protector' => 'Legacy\\ProtectorFacade',
 			'protectorfilterabstract' => 'Filter\\FilterAbstract',
 			'protectorfilterhandler' => 'Filter\\FilterHandler',
 			'protectormysqldatabase' => 'Database\\SqlInjectionGuard',

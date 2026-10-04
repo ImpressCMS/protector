@@ -1,5 +1,6 @@
 <?php
-require_once __DIR__ . '/precheck_functions.php';
+
+require_once dirname(__DIR__) . '/src/autoload.php';
 
 if (in_array('Icms\Db\Legacy\Factory', get_declared_classes())) {
 	require __DIR__ . '/postcheck.inc.php';
@@ -20,4 +21,4 @@ if (empty($_SERVER['REQUEST_URI'])) { // Not defined by IIS
 	}
 }
 
-protector_prepare();
+\ImpressCMS\Module\Protector\Kernel::boot()->precheck();
