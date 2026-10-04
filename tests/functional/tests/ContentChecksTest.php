@@ -132,15 +132,27 @@ final class ContentChecksTest extends SiteTestCase
         $this->assertSame('set-by-class-filter', $response->json()['post']['marker']);
     }
 
-    #[Scenario('FLT-06', 'the filter "postcommon_post_htmlpurify4everyone" is enabled', 'a guest posts a message longer than 32 characters', 'the built-in filter calls a method the 2.1 core no longer has, and the page fails with an internal error')]
-    #[KnownDefect('D11', 'the HTMLPurifier filters call Icms\Core\HTMLFilter::htmlpurify(), which no longer exists')]
-    public function testHtmlPurifierFilterFailsOnTheCurrentCore(): void
+    #[Scenario('FLT-06', 'the filter "postcommon_post_htmlpurify4everyone" is enabled', 'a guest posts a message longer than 32 characters', 'the page is served and the posted HTML has been purified: the script is gone, the harmless markup stays (D11 fixed)')]
+    public function testHtmlPurifierFilterCleansPostedHtml(): void
     {
         $this->configure(['filters' => 'postcommon_post_htmlpurify4everyone']);
 
         $response = $this->client()->post('/probe.php', ['msg' => '<p>hello world hello world hello world</p><script>alert(1)</script>']);
 
-        $this->assertStringContainsString('internal error', $response->body);
+        $this->assertTrue($this->isServed($response));
+        $this->assertStringContainsString('<p>hello world hello world hello world</p>', $response->json()['post']['msg']);
+        $this->assertStringNotContainsString('<script', $response->json()['post']['msg']);
+    }
+
+    #[Scenario('FLT-07', 'the filter "postcommon_post_htmlpurify4guest" is enabled', 'a guest posts a message longer than 32 characters', 'the posted HTML has been purified')]
+    public function testGuestHtmlPurifierFilterCleansPostedHtml(): void
+    {
+        $this->configure(['filters' => 'postcommon_post_htmlpurify4guest']);
+
+        $response = $this->client()->post('/probe.php', ['msg' => '<p>hello world hello world hello world</p><script>alert(1)</script>']);
+
+        $this->assertTrue($this->isServed($response));
+        $this->assertStringNotContainsString('<script', $response->json()['post']['msg']);
     }
 
     #[Scenario('FEA-01', '"disable features" at its default (XML-RPC and the old criteria bug)', 'a request posts uname=0, logging off', 'the request is terminated with an empty page')]

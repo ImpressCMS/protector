@@ -106,7 +106,8 @@ composer test:functional            # about 100 seconds
 | FLT-03 | the filter "prepurge_exit_message" is enabled and contamination ends the request | a request injects xoopsConfig[nocommon] | the filter's message is shown |  |
 | FLT-04 | a third-party filter written as a function (protector_postcommon_post_zzmarker) is dropped into the filters directory and listed in the preferences | a guest posts a form | the filter ran and could change the posted data |  |
 | FLT-05 | a third-party filter written as a class (protector_postcommon_post_zzclass extends ProtectorFilterAbstract) is dropped into the filters directory and listed in the preferences | a guest posts a form | the filter ran and could change the posted data |  |
-| FLT-06 | the filter "postcommon_post_htmlpurify4everyone" is enabled | a guest posts a message longer than 32 characters | the built-in filter calls a method the 2.1 core no longer has, and the page fails with an internal error | **D11** |
+| FLT-06 | the filter "postcommon_post_htmlpurify4everyone" is enabled | a guest posts a message longer than 32 characters | the page is served and the posted HTML has been purified: the script is gone, the harmless markup stays (D11 fixed) |  |
+| FLT-07 | the filter "postcommon_post_htmlpurify4guest" is enabled | a guest posts a message longer than 32 characters | the posted HTML has been purified |  |
 | FEA-01 | "disable features" at its default (XML-RPC and the old criteria bug) | a request posts uname=0, logging off | the request is terminated with an empty page |  |
 | FEA-02 | "disable features" set to none | a request posts uname=0 | the request is served |  |
 | FEA-03 | "disable features" at its default, logging at its default | a request asks for /xmlrpc.php | the log write needs the database, so the page dies with "No DB connection" | **D9** |
@@ -253,6 +254,5 @@ These scenarios assert today's behaviour although it is a defect. They are the o
 |---|---|---|
 | **D9** | events raised before the database service exists cannot be logged | FEA-03, SAN-01, SAN-13, SAN-16, UPL-02 |
 | **D10** | the request ends in purge() before the postcheck stage that would register the ban | SAN-04 |
-| **D11** | the HTMLPurifier filters call Icms\Core\HTMLFilter::htmlpurify(), which no longer exists | FLT-06 |
 
-_126 scenarios generated from the test attributes by `php tests/functional/bin/spec.php`._
+_127 scenarios generated from the test attributes by `php tests/functional/bin/spec.php`._
