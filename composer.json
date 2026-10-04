@@ -1,0 +1,27 @@
+{
+    "name": "impresscms/protector",
+    "description": "Protector module for ImpressCMS (development tooling only)",
+    "type": "project",
+    "license": "GPL-2.0-or-later",
+    "require": {
+        "php": ">=8.2"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.5"
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "ImpressCMS\\Module\\Protector\\Tests\\Functional\\": "tests/functional/src/"
+        }
+    },
+    "scripts": {
+        "test:functional": "@php tests/functional/bin/run.php",
+        "spec": "@php tests/functional/bin/spec.php",
+        "site:install": "@php tests/functional/bin/site.php install",
+        "site:snapshot": "@php tests/functional/bin/site.php snapshot",
+        "site:restore": "@php tests/functional/bin/site.php restore"
+    },
+    "config": {
+        "sort-packages": true
+    }
+}
