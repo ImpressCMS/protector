@@ -168,7 +168,7 @@ composer test:functional            # about 100 seconds
 | LIF-05 | the module was uninstalled | the administrator installs it again | the module, its 33 preferences, both tables and the preload file are back |  |
 | LIF-06 | a preference was changed to a non-default value and a log record exists | the administrator runs "update" for the module in the control panel | the changed preference, all 33 preferences and the log record are still there |  |
 | LIF-07 | the module is installed and active | an ordinary page is requested | the page is served and Protector's runtime preference cache has been written in the module's data directory |  |
-| LIF-10 | the module was installed by the ImpressCMS installer | the installation is inspected | the data directory exists in the trust path cache, the old configs directory was not created, and the access table has the composite index ip_uri_expire |  |
+| LIF-10 | the module was installed by the ImpressCMS installer | an ordinary page is requested and the installation is inspected | the data directory exists in the trust path cache, the old configs directory was not created, and the access table has the composite index ip_uri_expire |  |
 | LIF-09 | the module is installed | it is updated, uninstalled and installed again in the control panel | its two admin templates are registered exactly once after the installation, the update and the reinstallation, and are removed by the uninstallation |  |
 
 ## Log Record

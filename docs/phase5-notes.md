@@ -20,7 +20,9 @@ unprotected; every write already goes to the new directory. The update scenario 
 install.
 
 The `configs/index.html` placeholder is no longer shipped, so a fresh install does not create the old directory.
-The data directory is protected by the trust path's own `.htaccess` and gets an empty `index.html`.
+The data directory is protected by the trust path's own `.htaccess`. `Installer` only copies the preload: a fresh
+install needs nothing else, because the directory is created by the first write (the preference cache on the first
+request). `Updater` also creates it, with an empty `index.html`, because it has files to move into it.
 
 ## Dropped upgrade steps
 

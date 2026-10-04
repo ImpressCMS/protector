@@ -164,12 +164,13 @@ final class LifecycleTest extends SiteTestCase
         $this->assertGreaterThan(0, $response->json()['protector_conf_keys']);
     }
 
-    #[Scenario('LIF-10', 'the module was installed by the ImpressCMS installer', 'the installation is inspected', 'the data directory exists in the trust path cache, the old configs directory was not created, and the access table has the composite index ip_uri_expire')]
+    #[Scenario('LIF-10', 'the module was installed by the ImpressCMS installer', 'an ordinary page is requested and the installation is inspected', 'the data directory exists in the trust path cache, the old configs directory was not created, and the access table has the composite index ip_uri_expire')]
     public function testDataDirectoryAndAccessIndexExistAfterInstall(): void
     {
         $pdo = self::config()->pdo(self::config()->get('DB_NAME'));
         $prefix = self::config()->get('DB_PREFIX');
 
+        $this->assertTrue($this->isServed($this->probe($this->client())));
         $this->assertDirectoryExists(self::layout()->dataDir());
         $this->assertDirectoryDoesNotExist(self::layout()->legacyDataDir());
         $this->assertGreaterThan(0, (int) $pdo->query("SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = '{$prefix}_protector_access' AND index_name = 'ip_uri_expire'")->fetchColumn());
