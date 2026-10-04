@@ -9,6 +9,7 @@ use ImpressCMS\Module\Protector\Config\ProtectorConfig;
 use ImpressCMS\Module\Protector\Filter\FilterHandler;
 use ImpressCMS\Module\Protector\Http\Responder;
 use ImpressCMS\Module\Protector\Http\ServerRequest;
+use ImpressCMS\Module\Protector\Http\TextSanitiser;
 use ImpressCMS\Module\Protector\Log\AuditLog;
 
 final class BruteForceGuard
@@ -41,7 +42,7 @@ final class BruteForceGuard
 
         $uri = ServerRequest::uri();
 
-        $this->access->purgeExpired();
+        $this->access->collectGarbage();
 
         if ($this->access->countFailedLogins($ip) > $this->config->int('bf_count')) {
             $this->banList->register($ip, time() + $this->config->int('banip_time0'));
@@ -58,12 +59,6 @@ final class BruteForceGuard
 
     private function attemptedUsername(): string
     {
-        $fromCookie = !empty($_COOKIE['autologin_uname']);
-
-        $name = $fromCookie
-            ? filter_input(INPUT_COOKIE, 'autologin_uname', FILTER_SANITIZE_STRING)
-            : filter_input(INPUT_POST, 'uname', FILTER_SANITIZE_STRING);
-
-        return (string) $name;
+        return TextSanitiser::sanitise(empty($_COOKIE['autologin_uname']) ? ($_POST['uname'] ?? '') : $_COOKIE['autologin_uname']);
     }
 }

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace ImpressCMS\Module\Protector\Log;
 
 use ImpressCMS\Module\Protector\Config\ConfigStore;
-use ImpressCMS\Module\Protector\Http\Responder;
+use ImpressCMS\Module\Protector\Database\PdoProvider;
 use ImpressCMS\Module\Protector\Http\ServerRequest;
 
 final class AuditLog
@@ -18,17 +18,11 @@ final class AuditLog
 
     private bool $written = false;
 
-    private bool $databaseReady = false;
-
     public function __construct(
         private readonly ConfigStore $config,
-        private readonly Responder $responder,
+        private readonly PdoProvider $database,
+        private readonly string $tablePrefix = '',
     ) {
-    }
-
-    public function databaseIsReady(): void
-    {
-        $this->databaseReady = true;
     }
 
     public function note(string $message): void
@@ -74,32 +68,45 @@ final class AuditLog
             return;
         }
 
-        if (!$this->databaseReady && !\icms::$xoopsDB) {
-            $this->responder->halt('No DB connection');
+        $connection = $this->database->connection();
+
+        if ($connection === null) {
+            return;
         }
 
+        $table = $this->tablePrefix . '_' . self::TABLE;
         $ip = ServerRequest::clientIp();
-        $agent = ServerRequest::userAgent();
-        $table = XOOPS_DB_PREFIX . '_' . self::TABLE;
 
-        if ($skipRepeat && $this->repeatsLastRecord($table, $ip, $type)) {
+        if ($skipRepeat && $this->repeatsLastRecord($connection, $table, $ip, $type)) {
             $this->written = true;
 
             return;
         }
 
-        \icms::$xoopsDB->queryF(
-            "INSERT INTO {$table} SET ip='{$ip}',agent='{$agent}',type='" . addslashes($type)
-            . "',description='" . addslashes($this->message) . "',uid='" . $uid . "',timestamp=NOW()"
+        $statement = $connection->prepare(
+            "INSERT INTO {$table} (ip, agent, type, description, uid, `timestamp`)"
+            . ' VALUES (:ip, :agent, :type, :description, :uid, CURRENT_TIMESTAMP)'
         );
         $this->written = true;
+
+        if ($statement === false) {
+            return;
+        }
+
+        $statement->execute([
+            'ip' => $ip,
+            'agent' => ServerRequest::userAgent(),
+            'type' => $type,
+            'description' => $this->message,
+            'uid' => $uid,
+        ]);
     }
 
-    private function repeatsLastRecord(string $table, string $ip, string $type): bool
+    private function repeatsLastRecord(\PDO $connection, string $table, string $ip, string $type): bool
     {
-        $result = \icms::$xoopsDB->queryF("SELECT ip,type FROM {$table} ORDER BY timestamp DESC LIMIT 1");
-        [$lastIp, $lastType] = \icms::$xoopsDB->fetchRow($result);
+        $result = $connection->query("SELECT ip, type FROM {$table} ORDER BY `timestamp` DESC LIMIT 1");
+        $last = $result ? $result->fetch(\PDO::FETCH_NUM) : false;
 
-        return $lastIp == $ip && $lastType == $type;
+        return $last !== false && $last[0] == $ip && $last[1] == $type;
     }
 }

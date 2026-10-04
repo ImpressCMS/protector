@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace ImpressCMS\Module\Protector\Ban;
 
 use ImpressCMS\Module\Protector\Http\ServerRequest;
+use ImpressCMS\Module\Protector\Storage\AtomicFile;
 use ImpressCMS\Module\Protector\Storage\DataPaths;
+use ImpressCMS\Module\Protector\Storage\StoredArray;
 
 final class BanList
 {
@@ -20,9 +22,9 @@ final class BanList
     {
         $lines = @file($this->paths->badIps());
         $payload = $lines === false ? '' : (string) ($lines[0] ?? '');
-        $entries = $payload === '' ? [] : @unserialize($payload);
+        $entries = StoredArray::decode($payload);
 
-        if (!is_array($entries) || isset($entries[0])) {
+        if ($entries === null || isset($entries[0])) {
             return [];
         }
 
@@ -50,18 +52,7 @@ final class BanList
     {
         asort($entries);
 
-        $handle = @fopen($this->paths->badIps(), 'w');
-
-        if (!$handle) {
-            return false;
-        }
-
-        @flock($handle, LOCK_EX);
-        fwrite($handle, serialize($entries) . "\n");
-        @flock($handle, LOCK_UN);
-        fclose($handle);
-
-        return true;
+        return AtomicFile::write($this->paths->badIps(), StoredArray::encode($entries) . "\n");
     }
 
     public function register(string $ip, int $jailedUntil = 0): bool

@@ -115,27 +115,25 @@ final class BansAndIpListsTest extends SiteTestCase
         $this->assertSame('http://yahoo.com/', $response->location());
     }
 
-    #[Scenario('BAN-10', 'the administrator saves a two-line "allowed IPs for group 1" list', 'the stored list is used on the administrator\'s next request', 'the list holds the line numbers instead of the addresses and the administrator is locked out')]
-    #[KnownDefect('D1', 'the form handler iterates array_keys() of the submitted lines instead of the lines')]
-    public function testSavingTheGroupOneListLocksTheAdministratorOut(): void
+    #[Scenario('BAN-10', 'the administrator saves a two-line "allowed IPs for group 1" list that contains the administrator\'s own address', 'the administrator requests a page from that address', 'the stored list holds the addresses, so the administrator is still served (D1 fixed)')]
+    public function testSavingTheGroupOneListKeepsListedAddressesAllowed(): void
     {
         $admin = $this->admin();
         $this->saveIpLists($admin, '', "127.0.0.1\n127.0.0.2");
 
         $next = $admin->client()->get('/probe.php');
 
-        $this->assertStringContainsString('This account is disabled for your IP by Protector.', $next->body);
+        $this->assertSame(1, $next->json()['uid']);
     }
 
-    #[Scenario('BAN-11', 'the administrator saves a one-line "allowed IPs for group 1" list', 'the administrator requests a page', 'the restriction is not applied at all (the stored list is just "0"), so the feature cannot be used through the form')]
-    #[KnownDefect('D1', 'the form handler iterates array_keys() of the submitted lines instead of the lines')]
-    public function testSavingASingleLineGroupOneListRestrictsNothing(): void
+    #[Scenario('BAN-11', 'the administrator saves a one-line "allowed IPs for group 1" list that does not contain the administrator\'s address', 'the administrator requests a page', 'the restriction is applied and the administrator is refused (D1 fixed)')]
+    public function testSavingASingleLineGroupOneListRestrictsOtherAddresses(): void
     {
         $admin = $this->admin();
         $this->saveIpLists($admin, '', '127.0.0.99');
 
         $next = $admin->client()->get('/probe.php');
 
-        $this->assertSame(1, $next->json()['uid']);
+        $this->assertStringContainsString('This account is disabled for your IP by Protector.', $next->body);
     }
 }

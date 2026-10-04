@@ -1,23 +1,8 @@
 <?php
+
 class protector_postcommon_post_htmlpurify4everyone extends ProtectorFilterAbstract {
-	var $purifier;
-	var $method;
 
 	function execute() {
-		// use HTMLPurifier inside ImpressCMS
-		if (class_exists('Icms\Core\HTMLFilter')) {
-			$this->purifier = &\Icms\Core\HTMLFilter::getInstance();
-			$this->method = 'htmlpurify';
-		} else {
-			// use HTMLPurifier inside Protector
-			$config = HTMLPurifier_Config::createDefault();
-			$config->set('Cache', 'SerializerPath', ICMS_TRUST_PATH . '/modules/protector/configs');
-			$config->set('Core', 'Encoding', _CHARSET);
-			// $config->set('HTML', 'Doctype', 'HTML 4.01 Transitional');
-			$this->purifier = new HTMLPurifier($config);
-			$this->method = 'purify';
-		}
-
 		$_POST = $this->purify_recursive($_POST);
 	}
 
@@ -27,11 +12,8 @@ class protector_postcommon_post_htmlpurify4everyone extends ProtectorFilterAbstr
 				$this,
 				'purify_recursive'
 			), $data);
-		} else {
-			return strlen($data) > 32 ? call_user_func(array (
-				$this->purifier,
-				$this->method
-			), $data) : $data;
 		}
+
+		return strlen((string) $data) > 32 ? \Icms\Core\HTMLFilter::filterHTML((string) $data) : $data;
 	}
 }

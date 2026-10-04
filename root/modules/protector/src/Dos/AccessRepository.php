@@ -4,60 +4,95 @@ declare(strict_types=1);
 
 namespace ImpressCMS\Module\Protector\Dos;
 
+use ImpressCMS\Module\Protector\Database\PdoProvider;
+
 final class AccessRepository
 {
     private const TABLE = 'protector_access';
 
-    public function purgeExpired(): bool
+    public function __construct(
+        private readonly PdoProvider $database,
+        private readonly string $tablePrefix,
+        private readonly int $collectOneRequestIn = 20,
+    ) {
+    }
+
+    public function collectGarbage(): void
     {
-        return \icms::$xoopsDB->queryF('DELETE FROM ' . $this->table() . ' WHERE expire < UNIX_TIMESTAMP()') !== false;
+        if ($this->collectOneRequestIn > 1 && random_int(1, $this->collectOneRequestIn) !== 1) {
+            return;
+        }
+
+        $this->run("DELETE FROM {$this->table()} WHERE expire < :now", ['now' => time()]);
     }
 
     public function record(string $ip, string $uri, int $secondsToLive): void
     {
-        \icms::$xoopsDB->queryF(
-            'INSERT INTO ' . $this->table() . " SET ip='{$ip}',request_uri='{$uri}',expire=UNIX_TIMESTAMP()+'{$secondsToLive}'"
+        $this->run(
+            "INSERT INTO {$this->table()} (ip, request_uri, expire) VALUES (:ip, :uri, :expire)",
+            ['ip' => $ip, 'uri' => $uri, 'expire' => time() + $secondsToLive],
         );
     }
 
     public function recordFailedLogin(string $ip, string $uri, string $maliciousAction, int $secondsToLive): void
     {
-        \icms::$xoopsDB->queryF(
-            'INSERT INTO ' . $this->table()
-            . " SET ip='{$ip}',request_uri='{$uri}',malicious_actions='{$maliciousAction}',expire=UNIX_TIMESTAMP()+{$secondsToLive}"
+        $this->run(
+            "INSERT INTO {$this->table()} (ip, request_uri, malicious_actions, expire) VALUES (:ip, :uri, :action, :expire)",
+            ['ip' => $ip, 'uri' => $uri, 'action' => $maliciousAction, 'expire' => time() + $secondsToLive],
         );
     }
 
     public function countAll(): int
     {
-        return $this->count('');
+        return $this->count('', []);
     }
 
     public function countFromIp(string $ip): int
     {
-        return $this->count(" WHERE ip='{$ip}'");
+        return $this->count(' AND ip = :ip', ['ip' => $ip]);
     }
 
     public function countFromIpForUri(string $ip, string $uri): int
     {
-        return $this->count(" WHERE ip='{$ip}' AND request_uri='{$uri}'");
+        return $this->count(' AND ip = :ip AND request_uri = :uri', ['ip' => $ip, 'uri' => $uri]);
     }
 
     public function countFailedLogins(string $ip): int
     {
-        return $this->count(" WHERE ip='{$ip}' AND malicious_actions like 'BRUTE FORCE:%'");
+        return $this->count(" AND ip = :ip AND malicious_actions LIKE 'BRUTE FORCE:%'", ['ip' => $ip]);
     }
 
-    private function count(string $where): int
+    /** @param array<string, int|string> $parameters */
+    private function count(string $condition, array $parameters): int
     {
-        $result = \icms::$xoopsDB->query('SELECT COUNT(*) FROM ' . $this->table() . $where);
-        [$count] = \icms::$xoopsDB->fetchRow($result);
+        $statement = $this->run(
+            "SELECT COUNT(*) FROM {$this->table()} WHERE expire >= :now{$condition}",
+            ['now' => time(), ...$parameters],
+        );
 
-        return (int) $count;
+        return $statement === null ? 0 : (int) $statement->fetchColumn();
+    }
+
+    /** @param array<string, int|string> $parameters */
+    private function run(string $sql, array $parameters): ?\PDOStatement
+    {
+        $connection = $this->database->connection();
+
+        if ($connection === null) {
+            return null;
+        }
+
+        try {
+            $statement = $connection->prepare($sql);
+
+            return $statement !== false && $statement->execute($parameters) ? $statement : null;
+        } catch (\PDOException) {
+            return null;
+        }
     }
 
     private function table(): string
     {
-        return \icms::$xoopsDB->prefix(self::TABLE);
+        return "{$this->tablePrefix}_" . self::TABLE;
     }
 }

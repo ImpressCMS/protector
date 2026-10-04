@@ -140,7 +140,7 @@ final class RequestGuardsTest extends UnitTestCase
         $this->assertSame('5', $_POST['id']);
     }
 
-    public function testKnownDefectD12RequestKeepsTheUnsanitisedIdValue(): void
+    public function testRequestReceivesTheSanitisedIdValue(): void
     {
         $_GET = ['topic_id' => '12 OR 1=1'];
         $_POST = $_COOKIE = [];
@@ -149,7 +149,30 @@ final class RequestGuardsTest extends UnitTestCase
         (new IdValueSanitiser())->apply();
 
         $this->assertSame('12OR11', $_GET['topic_id']);
-        $this->assertSame('12 OR 1=1', $_REQUEST['topic_id']);
+        $this->assertSame('12OR11', $_REQUEST['topic_id']);
+    }
+
+    public function testRequestIsNotTouchedWhenItHoldsAnotherValueOrNone(): void
+    {
+        $_GET = ['topic_id' => '1 2'];
+        $_POST = ['user_id' => '3 4'];
+        $_COOKIE = [];
+        $_REQUEST = ['topic_id' => 'other'];
+
+        (new IdValueSanitiser())->apply();
+
+        $this->assertSame('other', $_REQUEST['topic_id']);
+        $this->assertArrayNotHasKey('user_id', $_REQUEST);
+    }
+
+    public function testRequestReceivesTheRewrittenTraversalValue(): void
+    {
+        $_GET = ['file' => '../../etc/passwd'];
+        $_REQUEST = ['file' => '../../etc/passwd'];
+
+        (new DirectoryTraversalGuard($this->auditLog()))->apply();
+
+        $this->assertSame('../../etc/passwd .', $_REQUEST['file']);
     }
 
     public function testDirectoryTraversalIsRewrittenInTheQueryString(): void

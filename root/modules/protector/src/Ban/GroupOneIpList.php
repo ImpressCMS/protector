@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace ImpressCMS\Module\Protector\Ban;
 
+use ImpressCMS\Module\Protector\Storage\AtomicFile;
 use ImpressCMS\Module\Protector\Storage\DataPaths;
+use ImpressCMS\Module\Protector\Storage\StoredArray;
 
 final class GroupOneIpList
 {
@@ -17,9 +19,7 @@ final class GroupOneIpList
     {
         $lines = @file($this->paths->groupOneIps());
         $payload = $lines === false ? '' : (string) ($lines[0] ?? '');
-        $entries = $payload === '' ? [] : @unserialize($payload);
-
-        return is_array($entries) ? $entries : [];
+        return StoredArray::decode($payload) ?? [];
     }
 
     /** @return array<int|string, int|string> */
@@ -31,18 +31,7 @@ final class GroupOneIpList
     /** @param array<int|string, int|string> $entries */
     public function write(array $entries): bool
     {
-        $handle = @fopen($this->paths->groupOneIps(), 'w');
-
-        if (!$handle) {
-            return false;
-        }
-
-        @flock($handle, LOCK_EX);
-        fwrite($handle, serialize($entries) . "\n");
-        @flock($handle, LOCK_UN);
-        fclose($handle);
-
-        return true;
+        return AtomicFile::write($this->paths->groupOneIps(), StoredArray::encode($entries) . "\n");
     }
 
     public function path(): string

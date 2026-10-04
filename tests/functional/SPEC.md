@@ -14,17 +14,25 @@ with a **known defect** may change, and only in the phase that fixes that defect
 * **Phase 1 layout move** (single module directory, namespaced classes). Only the layout adapter (`src/Layout.php`)
   changed, plus one hard-coded file path in `ENA-04` that now comes from the adapter. One scenario was **added**,
   `LIF-08` (upgrade from the previous release); no existing assertion was changed.
+* **Phase 2** (decomposition of the `Protector` class into `Kernel`, guards and services) changed no row of this
+  document and no assertion. The only edit to the suite is this note.
+* **Phase 3** (defect fixes) flipped the rows listed under "Known defects" below and added three scenarios. No other
+  assertion changed.
 
-## Known defects still pinned
+## Known defects
 
-1. **Anything detected before the database exists dies with "No DB connection" (D9).** Null bytes, `../`, bad uploads,
-   contamination, `xmlrpc.php` and the old criteria-bug probe are stopped, but by an error message instead of the
-   configured action, and never logged (SAN-01, SAN-13, SAN-16, UPL-02, FEA-03). They behave as documented when
-   logging is switched off.
-2. **The "group 1 allowed IPs" form is broken (D1).** It stores the line numbers instead of the addresses. With two or
-   more lines every administrator is locked out; with one line nothing is restricted (BAN-10, BAN-11).
-3. **Contamination with a ban action never bans (D10)** and **the built-in HTMLPurifier filters crash (D11)**
-   (SAN-04, FLT-06).
+None are pinned any more. Phase 3 fixed the ones this suite recorded, each in its own commit, and flipped only the rows
+that pinned them:
+
+| Defect | Rows flipped |
+|---|---|
+| D1 the "group 1 allowed IPs" form stored line numbers | BAN-10, BAN-11 |
+| D9 events raised before the database exists died with "No DB connection" | SAN-01, SAN-13, SAN-16, UPL-02, FEA-03 |
+| D10 contamination with an "exit + ban" action never banned | SAN-04 |
+| D11 the HTMLPurifier filters crashed | FLT-06 |
+
+New rows added in Phase 3: SAN-23 and SAN-24 (D12, `$_REQUEST` follows the sanitised value) and FLT-07 (guest
+HTMLPurifier filter). Defects without a pinned row (D2 to D8, D13) are covered by unit tests in `tests/unit/`.
 
 ## How the suite works
 
@@ -35,7 +43,7 @@ with a **known defect** may change, and only in the phase that fixes that defect
   "reliable IPs" setting exempts `127.0.0.1`, so the tests use other addresses for the "attacker".
 * Preferences are changed in the database, then one harmless request refreshes Protector's cache, exactly like saving
   them in the control panel would.
-* Rows marked **known defect** assert the *current, wrong* behaviour on purpose.
+* A row marked **known defect** asserts the *current, wrong* behaviour on purpose (none at the moment).
 * After changing the module in the repository, run `composer site:install` and `composer site:snapshot` again so the
   site contains the new code.
 
@@ -86,8 +94,8 @@ composer test:functional            # about 100 seconds
 | BAN-07 | Protector is switched off globally and an address is on the bad-IP list | that address requests a page | it is still blocked (the list is enforced before the global switch is looked at) |  |
 | BAN-08 | the isolated-comment action bans, and the attacker is an administrator (group 1 is exempt from bans) | the administrator triggers it and then requests a page | the administrator is not banned but is logged out |  |
 | BAN-09 | a bad-IP filter that redirects is enabled ("precommon_badip_redirection") | a banned address requests a page | it is redirected to the configured address instead of seeing the message |  |
-| BAN-10 | the administrator saves a two-line "allowed IPs for group 1" list | the stored list is used on the administrator's next request | the list holds the line numbers instead of the addresses and the administrator is locked out | **D1** |
-| BAN-11 | the administrator saves a one-line "allowed IPs for group 1" list | the administrator requests a page | the restriction is not applied at all (the stored list is just "0"), so the feature cannot be used through the form | **D1** |
+| BAN-10 | the administrator saves a two-line "allowed IPs for group 1" list that contains the administrator's own address | the administrator requests a page from that address | the stored list holds the addresses, so the administrator is still served (D1 fixed) |  |
+| BAN-11 | the administrator saves a one-line "allowed IPs for group 1" list that does not contain the administrator's address | the administrator requests a page | the restriction is applied and the administrator is refused (D1 fixed) |  |
 
 ## Content Checks
 
@@ -104,10 +112,11 @@ composer test:functional            # about 100 seconds
 | FLT-03 | the filter "prepurge_exit_message" is enabled and contamination ends the request | a request injects xoopsConfig[nocommon] | the filter's message is shown |  |
 | FLT-04 | a third-party filter written as a function (protector_postcommon_post_zzmarker) is dropped into the filters directory and listed in the preferences | a guest posts a form | the filter ran and could change the posted data |  |
 | FLT-05 | a third-party filter written as a class (protector_postcommon_post_zzclass extends ProtectorFilterAbstract) is dropped into the filters directory and listed in the preferences | a guest posts a form | the filter ran and could change the posted data |  |
-| FLT-06 | the filter "postcommon_post_htmlpurify4everyone" is enabled | a guest posts a message longer than 32 characters | the built-in filter calls a method the 2.1 core no longer has, and the page fails with an internal error | **D11** |
+| FLT-06 | the filter "postcommon_post_htmlpurify4everyone" is enabled | a guest posts a message longer than 32 characters | the page is served and the posted HTML has been purified: the script is gone, the harmless markup stays (D11 fixed) |  |
+| FLT-07 | the filter "postcommon_post_htmlpurify4guest" is enabled | a guest posts a message longer than 32 characters | the posted HTML has been purified |  |
 | FEA-01 | "disable features" at its default (XML-RPC and the old criteria bug) | a request posts uname=0, logging off | the request is terminated with an empty page |  |
 | FEA-02 | "disable features" set to none | a request posts uname=0 | the request is served |  |
-| FEA-03 | "disable features" at its default, logging at its default | a request asks for /xmlrpc.php | the log write needs the database, so the page dies with "No DB connection" | **D9** |
+| FEA-03 | "disable features" at its default, logging at its default | a request asks for /xmlrpc.php | the request is terminated with an empty page and an xmlrpc record is logged (D9 fixed) |  |
 | MAN-01 | the manipulation check is on | the site's front page is requested twice | the first request stores a fingerprint of the web root and index.php in the preferences; it stays unchanged on the second request |  |
 
 ## Database Trap And Output Check
@@ -187,10 +196,10 @@ composer test:functional            # about 100 seconds
 
 | ID | Given | When | Then | Known defect |
 |---|---|---|---|---|
-| SAN-01 | default preferences | a request tries to inject xoopsConfig[nocommon] | the log write needs the database, which does not exist yet at this stage, so the page dies with "No DB connection" and nothing is logged | **D9** |
+| SAN-01 | default preferences | a request tries to inject xoopsConfig[nocommon] | the request is terminated with the Protector message and a CONTAMI record is logged (D9 fixed) |  |
 | SAN-02 | logging off, contamination action "none" | a request tries to inject xoopsConfig[nocommon] | Protector lets the request through and the core itself answers with a redirect |  |
 | SAN-03 | logging off, contamination action "exit" | a request tries to inject xoopsConfig[nocommon] | the request is terminated with the Protector message |  |
-| SAN-04 | logging off, contamination action "exit + temporary ban" | a request tries to inject xoopsConfig[nocommon], then the same address requests a normal page | the first request is terminated; the address should now be banned but is not | **D10** |
+| SAN-04 | logging off, contamination action "exit + temporary ban" | a request tries to inject xoopsConfig[nocommon], then the same address requests a normal page | the first request is terminated and the address is banned, so the second request gets the jail message (D10 fixed) |  |
 | SAN-05 | isolated-comment action "none" | a request carries a value ending in an unterminated "/*" | the value is passed on unchanged and an ISOCOM record is logged |  |
 | SAN-06 | isolated-comment action "sanitize" | a request carries a value ending in an unterminated "/*" | the comment is closed ("*/" appended) and an ISOCOM record is logged |  |
 | SAN-07 | isolated-comment action "exit" | a request carries a value ending in an unterminated "/*" | the request is terminated with the Protector message and logged |  |
@@ -199,15 +208,17 @@ composer test:functional            # about 100 seconds
 | SAN-10 | union action "none" | a request carries "1 UNION SELECT 1" | the value is passed on unchanged and a UNION record is logged |  |
 | SAN-11 | union action "sanitize" | a request carries "1 UNION SELECT 1" | the word UNION is rewritten to "uni-on" and a UNION record is logged |  |
 | SAN-12 | union action "exit" | a request carries "1 UNION SELECT 1" | the request is terminated with the Protector message and logged |  |
-| SAN-13 | default preferences | a request carries a NUL byte | the log write needs the database, so the page dies with "No DB connection" | **D9** |
+| SAN-13 | default preferences | a request carries a NUL byte | the NUL byte is replaced by a space, the page is served and a NullByte record is logged (D9 fixed) |  |
 | SAN-14 | logging off, NUL-byte sanitising on | a request carries a NUL byte | the NUL byte is replaced by a space |  |
 | SAN-15 | NUL-byte sanitising off | a request carries a NUL byte | the value is passed on unchanged |  |
-| SAN-16 | default preferences | a request carries "../../etc/passwd" | the log write needs the database, so the page dies with "No DB connection" | **D9** |
+| SAN-16 | default preferences | a request carries "../../etc/passwd" | the value is rewritten, the page is served and a DirTraversal record is logged (D9 fixed) |  |
 | SAN-17 | logging off, "../" elimination on | a request carries "../../etc/passwd" | the value is rewritten with a trailing " ." |  |
 | SAN-18 | "../" elimination off | a request carries "../../etc/passwd" | the value is passed on unchanged |  |
 | SAN-19 | the visitor's address matches "reliable IPs" | a request carries "../../etc/passwd" | the value is passed on unchanged |  |
 | SAN-20 | "force integer on *id parameters" off | a request carries topic_id=12abc;-- | the value is passed on unchanged |  |
 | SAN-21 | "force integer on *id parameters" on | a request carries topic_id=12abc;-- and name=zz | only characters [0-9a-zA-Z_-] remain in the *id parameter; other parameters are untouched |  |
+| SAN-23 | "force integer on *id parameters" on | a request carries topic_id=12abc;-- | the combined request array holds the same cleaned value as the query string (D12) |  |
+| SAN-24 | "../" elimination on | a request carries "../../etc/passwd" | the combined request array holds the same rewritten value as the query string (D12) |  |
 | SAN-22 | Protector switched off globally | requests carry a NUL byte, an isolated comment and a UNION | all values are passed on unchanged and nothing is logged |  |
 
 ## Session And Group Access
@@ -233,7 +244,7 @@ composer test:functional            # about 100 seconds
 | ID | Given | When | Then | Known defect |
 |---|---|---|---|---|
 | UPL-01 | default preferences | a genuine PNG is uploaded as real.png | the upload reaches the page untouched |  |
-| UPL-02 | default preferences | a PHP script is uploaded | the log write needs the database, so the page dies with "No DB connection" and the upload is not served | **D9** |
+| UPL-02 | default preferences | a PHP script is uploaded | the request is terminated with the Protector message and an UPLOAD record is logged (D9 fixed) |  |
 | UPL-03 | logging off | a PHP script is uploaded | the request is terminated with the Protector message |  |
 | UPL-04 | logging off | a file with two dots in its name (double.sneaky.png) is uploaded | the request is terminated with the Protector message |  |
 | UPL-05 | logging off | a text file claiming to be a JPEG is uploaded | the request is terminated with the Protector message (the PHP warning it emits first is defect D6 and is not asserted) |  |
@@ -247,9 +258,5 @@ These scenarios assert today's behaviour although it is a defect. They are the o
 
 | Defect | Pinned behaviour | Scenarios |
 |---|---|---|
-| **D1** | the form handler iterates array_keys() of the submitted lines instead of the lines | BAN-10, BAN-11 |
-| **D9** | events raised before the database service exists cannot be logged | FEA-03, SAN-01, SAN-13, SAN-16, UPL-02 |
-| **D10** | the request ends in purge() before the postcheck stage that would register the ban | SAN-04 |
-| **D11** | the HTMLPurifier filters call Icms\Core\HTMLFilter::htmlpurify(), which no longer exists | FLT-06 |
 
-_124 scenarios generated from the test attributes by `php tests/functional/bin/spec.php`._
+_127 scenarios generated from the test attributes by `php tests/functional/bin/spec.php`._

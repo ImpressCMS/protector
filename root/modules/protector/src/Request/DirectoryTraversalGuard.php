@@ -30,9 +30,10 @@ final class DirectoryTraversalGuard
                 $sanitised .= ' .';
             }
 
+            $requestFollows = isset($_REQUEST[$key]) && $_REQUEST[$key] == $value;
             $_GET[$key] = $sanitised;
 
-            if (($_REQUEST[$key] ?? null) == $_GET[$key]) {
+            if ($requestFollows) {
                 $_REQUEST[$key] = $sanitised;
             }
         }

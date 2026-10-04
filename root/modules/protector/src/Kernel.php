@@ -11,7 +11,9 @@ use ImpressCMS\Module\Protector\Ban\IpMatch;
 use ImpressCMS\Module\Protector\Ban\IpMatcher;
 use ImpressCMS\Module\Protector\Config\ConfigStore;
 use ImpressCMS\Module\Protector\Config\ProtectorConfig;
+use ImpressCMS\Module\Protector\Database\CorePdoProvider;
 use ImpressCMS\Module\Protector\Database\DatabaseTrap;
+use ImpressCMS\Module\Protector\Database\PdoProvider;
 use ImpressCMS\Module\Protector\Dos\AccessRepository;
 use ImpressCMS\Module\Protector\Dos\BandwidthLimiter;
 use ImpressCMS\Module\Protector\Dos\BruteForceGuard;
@@ -70,6 +72,7 @@ final class Kernel
         private readonly SessionPurger $purger,
         private readonly RequestMutator $mutator,
         private readonly DatabaseTrap $databaseTrap,
+        private readonly PdoProvider $database,
     ) {
     }
 
@@ -86,7 +89,8 @@ final class Kernel
     private static function assemble(): self
     {
         $paths = DataPaths::forCurrentSite();
-        $config = new ConfigStore($paths);
+        $database = new CorePdoProvider();
+        $config = new ConfigStore($paths, $database, XOOPS_DB_PREFIX);
         $responder = new ExitResponder();
         $filters = new FilterHandler($config, $responder, dirname(__DIR__));
 
@@ -94,7 +98,7 @@ final class Kernel
             $paths,
             $config,
             $responder,
-            new AuditLog($config, $responder),
+            new AuditLog($config, $database, XOOPS_DB_PREFIX),
             $filters,
             new BanList($paths),
             new GroupOneIpList($paths),
@@ -104,6 +108,7 @@ final class Kernel
             new SessionPurger($filters, $responder),
             new RequestMutator(),
             new DatabaseTrap($config),
+            $database,
         );
     }
 
@@ -145,7 +150,7 @@ final class Kernel
         $this->postchecked = true;
 
         $this->warnWhenDataDirectoryIsNotWritable();
-        $this->refreshConfigFromDatabase();
+        $this->config->refreshFromDatabase();
 
         $config = $this->config->current();
 
@@ -337,11 +342,25 @@ final class Kernel
             $_GET = $_POST = [];
         }
 
+        if ($policy->bansTemporarily() && $policy->exits()) {
+            $this->banClientNow($policy, $config);
+        }
+
         $this->log->write($this->log->lastType());
 
         if ($policy->exits()) {
             $this->purger->purge();
         }
+    }
+
+    private function banClientNow(ViolationPolicy $policy, ProtectorConfig $config): void
+    {
+        $this->banPermanentlyWhenPossible = false;
+        $this->banTemporarilyWhenPossible = false;
+
+        $policy->bansPermanently()
+            ? $this->banList->registerClient()
+            : $this->banList->registerClient(time() + $config->int('banip_time0'));
     }
 
     private function warnWhenDataDirectoryIsNotWritable(): void
@@ -351,18 +370,6 @@ final class Kernel
         if (($_SERVER['REQUEST_URI'] ?? '') === '/admin.php' && !is_writable($directory)) {
             trigger_error("You should turn the directory {$directory} writable", E_USER_WARNING);
         }
-    }
-
-    private function refreshConfigFromDatabase(): void
-    {
-        $connection = \Icms\Db\Factory::instance()->conn;
-
-        if (empty($connection)) {
-            return;
-        }
-
-        $this->log->databaseIsReady();
-        $this->config->refreshFromDatabase();
     }
 
     private function refuseGroupOneAdministratorOutsideAllowedIps(Visitor $visitor): void
@@ -503,11 +510,16 @@ final class Kernel
         $this->filters->execute('postcommon_post');
     }
 
+    private function accessRepository(): AccessRepository
+    {
+        return new AccessRepository($this->database, XOOPS_DB_PREFIX);
+    }
+
     private function dosGuard(ProtectorConfig $config): DosGuard
     {
         return new DosGuard(
             $config,
-            new AccessRepository(),
+            $this->accessRepository(),
             $this->bandwidth,
             $this->banList,
             $this->htaccess,
@@ -519,7 +531,7 @@ final class Kernel
 
     private function bruteForceGuard(ProtectorConfig $config): BruteForceGuard
     {
-        return new BruteForceGuard($config, new AccessRepository(), $this->banList, $this->filters, $this->log, $this->responder);
+        return new BruteForceGuard($config, $this->accessRepository(), $this->banList, $this->filters, $this->log, $this->responder);
     }
 
     private function define(string $constant): void

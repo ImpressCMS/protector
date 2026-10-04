@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace ImpressCMS\Module\Protector\Config;
 
+use ImpressCMS\Module\Protector\Storage\StoredArray;
+
 final class ProtectorConfig
 {
     /** @param array<string, mixed> $values */
@@ -40,15 +42,7 @@ final class ProtectorConfig
     public function storedList(string $key): array
     {
         $raw = $this->string($key);
-        $list = @unserialize($raw);
-
-        if (is_array($list)) {
-            return $list;
-        }
-
-        $list = @unserialize(stripslashes($raw));
-
-        return is_array($list) ? $list : [];
+        return StoredArray::decode($raw) ?? StoredArray::decode(stripslashes($raw)) ?? [];
     }
 
     public function isReliableIp(string $ip): bool
