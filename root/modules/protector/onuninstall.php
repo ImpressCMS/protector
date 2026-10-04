@@ -11,7 +11,7 @@ if (!function_exists('protector_onuninstall_base')) {
 
 		if (!is_array($ret)) $ret = array ();
 
-		$db = icms_db_Factory::instance();
+		$db = \Icms\Db\Factory::instance();
 		$mid = $module->getVar('mid');
 
 		// TABLES (loading mysql.sql)
@@ -33,7 +33,7 @@ if (!function_exists('protector_onuninstall_base')) {
 		}
 
 		if (defined('ICMS_PRELOAD_PATH') && file_exists(ICMS_PRELOAD_PATH . '/protector.php')) {
-			icms_core_Filesystem::deleteFile(ICMS_PRELOAD_PATH . '/protector.php');
+			\Icms\Core\Filesystem::deleteFile(ICMS_PRELOAD_PATH . '/protector.php');
 		}
 
 		return true;

@@ -1,5 +1,5 @@
 <?php
-$db = icms_db_Factory::instance();
+$db = \Icms\Db\Factory::instance();
 
 // beginning of Output
 icms_cp_header();
@@ -74,7 +74,7 @@ echo "</dl>\n";
 
 // patch to databasefactory.php
 echo "<dl><dt>'databasefactory.php' : ";
-$db = icms_db_Factory::instance();
+$db = \Icms\Db\Factory::instance();
 if ((strtolower(get_class($db)) != 'protectormysqldatabase') && (substr(XOOPS_DB_TYPE, 0, 4) != 'pdo.')) {
 	echo "<span style='color:red;font-weight:bold;'>" . _AM_ADV_DBFACTORYUNPATCHED . "</span></dt>\n";
 } else {

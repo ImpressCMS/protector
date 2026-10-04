@@ -16,7 +16,7 @@ include __DIR__ . '/admin_menu.php';
 
 // preferences
 $config_handler = icms::handler('icms_config');
-if (count($config_handler->getConfigs(new icms_db_criteria_Item('conf_modid', $xoopsModule->getVar('mid')))) > 0) {
+if (count($config_handler->getConfigs(new \Icms\Db\Criteria\Item('conf_modid', $xoopsModule->getVar('mid')))) > 0) {
 
 	// system->preferences
 	array_push($adminmenu, array (

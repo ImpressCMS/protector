@@ -11,7 +11,7 @@ if (!function_exists('protector_oninstall_base')) {
 
 		if (!is_array($ret)) $ret = array ();
 
-		$db = icms_db_Factory::instance();
+		$db = \Icms\Db\Factory::instance();
 		$mid = $module->getVar('mid');
 
 		// TABLES (loading mysql.sql)
@@ -20,7 +20,7 @@ if (!function_exists('protector_oninstall_base')) {
 		if (file_exists($sql_file_path)) {
 			$ret[] = "SQL file found at <b>" . htmlspecialchars($sql_file_path) . "</b>.<br /> Creating tables...";
 
-			$sqlutil = new icms_db_legacy_mysql_Utility();
+			$sqlutil = new \Icms\Db\Legacy\Mysql\Utility();
 			$sql_query = trim(file_get_contents($sql_file_path));
 			$sqlutil->splitMySqlFile($pieces, $sql_query);
 			$created_tables = array ();
@@ -46,7 +46,7 @@ if (!function_exists('protector_oninstall_base')) {
 		}
 
 		// TEMPLATES
-		$tplfile_handler = new icms_view_template_file_Handler(icms::$xoopsDB);
+		$tplfile_handler = new \Icms\View\Template\File\Handler(icms::$xoopsDB);
 		$tpl_path = __DIR__ . '/templates';
 		if ($handler = @opendir($tpl_path . '/')) {
 			while (($file = readdir($handler)) !== false) {
@@ -74,7 +74,7 @@ if (!function_exists('protector_oninstall_base')) {
 						$tplid = $tplfile->getVar('tpl_id');
 						$ret[] = 'Template <b>' . htmlspecialchars($mydirname . '_' . $file) . '</b> added to the database. (ID: <b>' . $tplid . '</b>)<br />';
 						// generate compiled file
-						if (!icms_view_Tpl::template_touch($tplid)) {
+						if (!\Icms\View\Tpl::template_touch($tplid)) {
 							$ret[] = '<span style="color:#ff0000;">ERROR: Failed compiling template <b>' . htmlspecialchars($mydirname . '_' . $file) . '</b>.</span><br />';
 						} else {
 							$ret[] = 'Template <b>' . htmlspecialchars($mydirname . '_' . $file) . '</b> compiled.</span><br />';
@@ -89,14 +89,14 @@ if (!function_exists('protector_oninstall_base')) {
 		 * Fixes Bug #619 : parse Error
 		 */
 		if ((defined('ICMS_PRELOAD_PATH') && !file_exists(ICMS_PRELOAD_PATH . '/protector.php')) && (!defined('PROTECTOR_POSTCHECK_INCLUDED') || !defined('PROTECTOR_PRECHECK_INCLUDED'))) {
-			if (icms_core_Filesystem::copyRecursive(__DIR__ . '/preload/protector.php', ICMS_PRELOAD_PATH . '/protector.php')) {
+			if (\Icms\Core\Filesystem::copyRecursive(__DIR__ . '/preload/protector.php', ICMS_PRELOAD_PATH . '/protector.php')) {
 				$ret[] = 'Successfully moved protector preload<br />';
 			} else {
-				$ret[] = icms_core_Message::error("Failed to move protector preload - your site is not protected.", "", FALSE);
+				$ret[] = \Icms\Core\Message::error("Failed to move protector preload - your site is not protected.", "", FALSE);
 			}
 		}
 
-		icms_view_Tpl::template_clear_module_cache($mid);
+		\Icms\View\Tpl::template_clear_module_cache($mid);
 
 		return true;
 	}

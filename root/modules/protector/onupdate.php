@@ -11,7 +11,7 @@ if (!function_exists('protector_onupdate_base')) {
 
 		if (!is_array($msgs)) $msgs = array ();
 
-		$db = icms_db_Factory::instance();
+		$db = \Icms\Db\Factory::instance();
 		$mid = $module->getVar('mid');
 
 		// TABLES (write here ALTER TABLE etc. if necessary)
@@ -64,7 +64,7 @@ if (!function_exists('protector_onupdate_base')) {
 						$tplid = $tplfile->getVar('tpl_id');
 						$msgs[] = 'Template <b>' . htmlspecialchars($mydirname . '_' . $file) . '</b> added to the database. (ID: <b>' . $tplid . '</b>)';
 						// generate compiled file
-						if (!icms_view_Tpl::template_touch($tplid)) {
+						if (!\Icms\View\Tpl::template_touch($tplid)) {
 							$msgs[] = '<span style="color:#ff0000;">ERROR: Failed compiling template <b>' . htmlspecialchars($mydirname . '_' . $file) . '</b>.</span>';
 						} else {
 							$msgs[] = 'Template <b>' . htmlspecialchars($mydirname . '_' . $file) . '</b> compiled.</span>';
@@ -76,13 +76,13 @@ if (!function_exists('protector_onupdate_base')) {
 		}
 
 		if ((defined('ICMS_PRELOAD_PATH') && !file_exists(ICMS_PRELOAD_PATH . '/protector.php')) && (!defined('PROTECTOR_POSTCHECK_INCLUDED') || !defined('PROTECTOR_PRECHECK_INCLUDED')) && function_exists('icms_copyr')) {
-			icms_core_Filesystem::copyRecursive(__DIR__ . '/preload/protector.php', ICMS_PRELOAD_PATH . '/protector.php');
+			\Icms\Core\Filesystem::copyRecursive(__DIR__ . '/preload/protector.php', ICMS_PRELOAD_PATH . '/protector.php');
 		}
 
 		// Remove the prefix_manager page - no longer relevant, especially in this module
-		icms_core_Filesystem::deleteFile(ICMS_TRUST_PATH . '/modules/protector/admin/prefix_manager.php');
+		\Icms\Core\Filesystem::deleteFile(ICMS_TRUST_PATH . '/modules/protector/admin/prefix_manager.php');
 
-		icms_view_Tpl::template_clear_module_cache($mid);
+		\Icms\View\Tpl::template_clear_module_cache($mid);
 
 		return true;
 	}

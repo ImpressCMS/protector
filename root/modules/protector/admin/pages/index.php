@@ -1,8 +1,8 @@
 <?php
 // PHP7 compliance
 require_once dirname(__DIR__, 2) . '/include/gtickets.php';
-$myts = icms_core_Textsanitizer::getInstance();
-$db = icms_db_Factory::instance();
+$myts = \Icms\Core\Textsanitizer::getInstance();
+$db = \Icms\Db\Factory::instance();
 
 // GET vars
 $pos = empty($_GET['pos']) ? 0 : (int) $_GET['pos'];
@@ -114,7 +114,7 @@ list($numrows) = $db->fetchRow($rs);
 $prs = $db->query("SELECT l.lid, l.uid, l.ip, l.agent, l.type, l.description, UNIX_TIMESTAMP(l.timestamp), u.uname FROM $log_table l LEFT JOIN " . $db->prefix("users") . " u ON l.uid=u.uid ORDER BY timestamp DESC LIMIT $pos,$num");
 
 // Page Navigation
-$nav = new icms_view_PageNav($numrows, $num, $pos, 'pos', "num=$num");
+$nav = new \Icms\View\PageNav($numrows, $num, $pos, 'pos', "num=$num");
 $nav_html = $nav->renderNav(10);
 
 // Number selection
