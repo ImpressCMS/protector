@@ -1,0 +1,610 @@
+<?php
+
+declare(strict_types=1);
+
+namespace ImpressCMS\Module\Protector;
+
+use ImpressCMS\Module\Protector\Ban\BanList;
+use ImpressCMS\Module\Protector\Ban\GroupOneIpList;
+use ImpressCMS\Module\Protector\Ban\HtaccessWriter;
+use ImpressCMS\Module\Protector\Ban\IpMatch;
+use ImpressCMS\Module\Protector\Ban\IpMatcher;
+use ImpressCMS\Module\Protector\Config\ConfigStore;
+use ImpressCMS\Module\Protector\Config\ProtectorConfig;
+use ImpressCMS\Module\Protector\Database\CorePdoProvider;
+use ImpressCMS\Module\Protector\Database\DatabaseTrap;
+use ImpressCMS\Module\Protector\Database\PdoProvider;
+use ImpressCMS\Module\Protector\Dos\AccessRepository;
+use ImpressCMS\Module\Protector\Dos\BandwidthLimiter;
+use ImpressCMS\Module\Protector\Dos\BruteForceGuard;
+use ImpressCMS\Module\Protector\Dos\DosGuard;
+use ImpressCMS\Module\Protector\Filter\FilterHandler;
+use ImpressCMS\Module\Protector\Http\ExitResponder;
+use ImpressCMS\Module\Protector\Http\Responder;
+use ImpressCMS\Module\Protector\Http\ServerRequest;
+use ImpressCMS\Module\Protector\Legacy\ProtectorFacade;
+use ImpressCMS\Module\Protector\Log\AuditLog;
+use ImpressCMS\Module\Protector\Log\LogLevel;
+use ImpressCMS\Module\Protector\Output\XssUmbrella;
+use ImpressCMS\Module\Protector\Policy\ViolationPolicy;
+use ImpressCMS\Module\Protector\Request\DirectoryTraversalGuard;
+use ImpressCMS\Module\Protector\Request\IdValueSanitiser;
+use ImpressCMS\Module\Protector\Request\IsolatedCommentGuard;
+use ImpressCMS\Module\Protector\Request\LegacyFeatureGuard;
+use ImpressCMS\Module\Protector\Request\ManipulationGuard;
+use ImpressCMS\Module\Protector\Request\RequestMutator;
+use ImpressCMS\Module\Protector\Request\RequestScanner;
+use ImpressCMS\Module\Protector\Request\SpamGuard;
+use ImpressCMS\Module\Protector\Request\UnionGuard;
+use ImpressCMS\Module\Protector\Request\UploadGuard;
+use ImpressCMS\Module\Protector\Session\SessionHijackGuard;
+use ImpressCMS\Module\Protector\Session\SessionPurger;
+use ImpressCMS\Module\Protector\Session\Visitor;
+use ImpressCMS\Module\Protector\Storage\DataPaths;
+
+final class Kernel
+{
+    /**
+     * @readonly
+     */
+    private DataPaths $paths;
+    /**
+     * @readonly
+     */
+    private ConfigStore $config;
+    /**
+     * @readonly
+     */
+    private Responder $responder;
+    /**
+     * @readonly
+     */
+    private AuditLog $log;
+    /**
+     * @readonly
+     */
+    private FilterHandler $filters;
+    /**
+     * @readonly
+     */
+    private BanList $banList;
+    /**
+     * @readonly
+     */
+    private GroupOneIpList $groupOneIps;
+    /**
+     * @readonly
+     */
+    private IpMatcher $ipMatcher;
+    /**
+     * @readonly
+     */
+    private HtaccessWriter $htaccess;
+    /**
+     * @readonly
+     */
+    private BandwidthLimiter $bandwidth;
+    /**
+     * @readonly
+     */
+    private SessionPurger $purger;
+    /**
+     * @readonly
+     */
+    private RequestMutator $mutator;
+    /**
+     * @readonly
+     */
+    private DatabaseTrap $databaseTrap;
+    /**
+     * @readonly
+     */
+    private PdoProvider $database;
+    private static ?self $instance = null;
+
+    private bool $prechecked = false;
+
+    private bool $postchecked = false;
+
+    private bool $banPermanentlyWhenPossible = false;
+
+    private bool $banTemporarilyWhenPossible = false;
+
+    private ?RequestScanner $scanner = null;
+
+    /**
+     * @var mixed
+     */
+    private $matchedBanInfo = null;
+
+    private function __construct(DataPaths $paths, ConfigStore $config, Responder $responder, AuditLog $log, FilterHandler $filters, BanList $banList, GroupOneIpList $groupOneIps, IpMatcher $ipMatcher, HtaccessWriter $htaccess, BandwidthLimiter $bandwidth, SessionPurger $purger, RequestMutator $mutator, DatabaseTrap $databaseTrap, PdoProvider $database)
+    {
+        $this->paths = $paths;
+        $this->config = $config;
+        $this->responder = $responder;
+        $this->log = $log;
+        $this->filters = $filters;
+        $this->banList = $banList;
+        $this->groupOneIps = $groupOneIps;
+        $this->ipMatcher = $ipMatcher;
+        $this->htaccess = $htaccess;
+        $this->bandwidth = $bandwidth;
+        $this->purger = $purger;
+        $this->mutator = $mutator;
+        $this->databaseTrap = $databaseTrap;
+        $this->database = $database;
+    }
+
+    public static function boot(): self
+    {
+        if (self::$instance === null) {
+            self::$instance = self::assemble();
+            class_exists(ProtectorFacade::class);
+        }
+
+        return self::$instance;
+    }
+
+    private static function assemble(): self
+    {
+        $paths = DataPaths::forCurrentSite();
+        $database = new CorePdoProvider();
+        $config = new ConfigStore($paths, $database, XOOPS_DB_PREFIX);
+        $responder = new ExitResponder();
+        $filters = new FilterHandler($config, $responder, dirname(__DIR__));
+
+        return new self(
+            $paths,
+            $config,
+            $responder,
+            new AuditLog($config, $database, XOOPS_DB_PREFIX),
+            $filters,
+            new BanList($paths),
+            new GroupOneIpList($paths),
+            new IpMatcher(),
+            new HtaccessWriter(),
+            new BandwidthLimiter($paths),
+            new SessionPurger($filters, $responder),
+            new RequestMutator(),
+            new DatabaseTrap($config),
+            $database,
+        );
+    }
+
+    public function precheck(): void
+    {
+        if ($this->prechecked) {
+            return;
+        }
+
+        $this->prechecked = true;
+
+        if (defined('_INSTALL_CHARSET') && !defined('XOOPS_MAINFILE_INCLUDED')) {
+            $this->responder->halt('To use installer, remove the following plugin first: /plugins/preload/protector.php');
+        }
+
+        $config = $this->config->current();
+
+        if (!$config->isGloballyDisabled()) {
+            $this->scanner = new RequestScanner($config, $this->log, $this->mutator);
+            $this->scanner->scan();
+        }
+
+        $this->refuseWhenBandwidthIsExhausted($config);
+        $this->refuseBannedClient();
+
+        if ($config->isGloballyDisabled()) {
+            return;
+        }
+
+        $this->guardRequest($config, $config->isReliableIp(ServerRequest::rawClientIp()));
+    }
+
+    public function postcheck(): void
+    {
+        if ($this->postchecked) {
+            return;
+        }
+
+        $this->postchecked = true;
+
+        $this->warnWhenDataDirectoryIsNotWritable();
+        $this->config->refreshFromDatabase();
+
+        $config = $this->config->current();
+
+        if ($config->isEmpty() || $config->isGloballyDisabled()) {
+            return;
+        }
+
+        $visitor = Visitor::current();
+
+        $this->refuseGroupOneAdministratorOutsideAllowedIps($visitor);
+
+        if ($config->isReliableIp(ServerRequest::rawClientIp())) {
+            return;
+        }
+
+        $canBan = $this->canBan($visitor, $config);
+
+        if (!$visitor->isMember() && $this->isLoginAttempt()) {
+            $this->bruteForceGuard($config)->check();
+        }
+
+        $this->applyBansDecidedByPrecheck($canBan, $config);
+        $this->checkRequestRate($visitor, $canBan, $config);
+
+        (new SessionHijackGuard($config, $this->purger))->check($visitor);
+
+        $this->checkSqlInjectionPatterns($visitor, $canBan, $config);
+        $this->checkPostedContent($visitor, $config);
+
+        if ((string) ($_SERVER['SCRIPT_FILENAME'] ?? '') === ICMS_ROOT_PATH . '/register.php') {
+            $this->filters->execute('postcommon_register');
+        }
+
+        if ($config->enabled('enable_manip_check')) {
+            (new ManipulationGuard($this->config, $this->filters, $this->responder))->check();
+        }
+    }
+
+    public function auditLog(): AuditLog
+    {
+        return $this->log;
+    }
+
+    public function configStore(): ConfigStore
+    {
+        return $this->config;
+    }
+
+    public function responder(): Responder
+    {
+        return $this->responder;
+    }
+
+    public function databaseTrap(): DatabaseTrap
+    {
+        return $this->databaseTrap;
+    }
+
+    public function banList(): BanList
+    {
+        return $this->banList;
+    }
+
+    public function groupOneIps(): GroupOneIpList
+    {
+        return $this->groupOneIps;
+    }
+
+    public function ipMatcher(): IpMatcher
+    {
+        return $this->ipMatcher;
+    }
+
+    public function htaccess(): HtaccessWriter
+    {
+        return $this->htaccess;
+    }
+
+    public function purger(): SessionPurger
+    {
+        return $this->purger;
+    }
+
+    public function filters(): FilterHandler
+    {
+        return $this->filters;
+    }
+
+    public function paths(): DataPaths
+    {
+        return $this->paths;
+    }
+
+    public function pdoProvider(): PdoProvider
+    {
+        return $this->database;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function matchedBanInfo()
+    {
+        return $this->matchedBanInfo;
+    }
+
+    public function rememberMatch(?IpMatch $match): void
+    {
+        $this->matchedBanInfo = ($nullsafeVariable1 = $match) ? $nullsafeVariable1->info : null;
+    }
+
+    public function legacyFacade(): ProtectorFacade
+    {
+        return new ProtectorFacade($this);
+    }
+
+    private function refuseWhenBandwidthIsExhausted(ProtectorConfig $config): void
+    {
+        if ($config->int('bwlimit_count') < 10 || !$this->bandwidth->isLimited()) {
+            return;
+        }
+
+        header('HTTP/1.0 503 Service unavailable');
+        $this->filters->run('precommon_bwlimit', 'This site is very crowed now. try later.');
+    }
+
+    private function refuseBannedClient(): void
+    {
+        $match = $this->ipMatcher->find($this->banList->entries(), ServerRequest::clientIp());
+        $this->rememberMatch($match);
+
+        if ($match === null) {
+            return;
+        }
+
+        $this->filters->run('precommon_badip', 'You are registered as BAD_IP by Protector.');
+    }
+
+    private function guardRequest(ProtectorConfig $config, bool $reliable): void
+    {
+        $forced = strpos((string) ($_SERVER['REQUEST_URI'] ?? ''), 'protector/admin/index.php?page=advisory') !== false;
+
+        if ($forced || $config->enabled('enable_dblayertrap')) {
+            $this->define('PROTECTOR_ENABLED_ANTI_SQL_INJECTION');
+            $this->databaseTrap->arm($forced);
+        }
+
+        if ($config->enabled('enable_bigumbrella')) {
+            $this->define('PROTECTOR_ENABLED_ANTI_XSS');
+            (new XssUmbrella())->start();
+        }
+
+        if ($config->enabled('id_forceintval')) {
+            (new IdValueSanitiser())->apply();
+        }
+
+        if (!$reliable && $config->enabled('file_dotdot')) {
+            (new DirectoryTraversalGuard($this->log))->apply();
+        }
+
+        if (!$reliable) {
+            $this->refuseUnsafeUploads($config);
+        }
+
+        $this->handleContamination($config);
+
+        if ($config->enabled('disable_features')) {
+            (new LegacyFeatureGuard($config, $this->log, $this->responder))->apply();
+        }
+    }
+
+    private function refuseUnsafeUploads(ProtectorConfig $config): void
+    {
+        if (empty($_FILES) || !$config->enabled('die_badext') || defined('PROTECTOR_SKIP_FILESCHECKER')) {
+            return;
+        }
+
+        if ((new UploadGuard($this->log))->isSafe($_FILES)) {
+            return;
+        }
+
+        $this->log->write($this->log->lastType());
+        $this->purger->purge();
+    }
+
+    private function handleContamination(ProtectorConfig $config): void
+    {
+        if ($this->scanner === null || !$this->scanner->isContaminated()) {
+            return;
+        }
+
+        $policy = new ViolationPolicy($config->int('contami_action'));
+
+        if ($policy->bansTemporarily()) {
+            $this->banPermanentlyWhenPossible = $policy->bansPermanently();
+            $this->banTemporarilyWhenPossible = !$policy->bansPermanently();
+            $_GET = $_POST = [];
+        }
+
+        if ($policy->bansTemporarily() && $policy->exits()) {
+            $this->banClientNow($policy, $config);
+        }
+
+        $this->log->write($this->log->lastType());
+
+        if ($policy->exits()) {
+            $this->purger->purge();
+        }
+    }
+
+    private function banClientNow(ViolationPolicy $policy, ProtectorConfig $config): void
+    {
+        $this->banPermanentlyWhenPossible = false;
+        $this->banTemporarilyWhenPossible = false;
+
+        $policy->bansPermanently()
+            ? $this->banList->registerClient()
+            : $this->banList->registerClient(time() + $config->int('banip_time0'));
+    }
+
+    private function warnWhenDataDirectoryIsNotWritable(): void
+    {
+        $directory = $this->paths->directory();
+
+        if (($_SERVER['REQUEST_URI'] ?? '') === '/admin.php' && !is_writable($directory)) {
+            trigger_error("You should turn the directory {$directory} writable", E_USER_WARNING);
+        }
+    }
+
+    private function refuseGroupOneAdministratorOutsideAllowedIps(Visitor $visitor): void
+    {
+        if (!$visitor->isInGroup(1)) {
+            return;
+        }
+
+        $allowed = $this->groupOneIps->entriesWithInfo();
+
+        if (!implode('', array_keys($allowed))) {
+            return;
+        }
+
+        $match = $this->ipMatcher->find($allowed, ServerRequest::clientIp());
+        $this->rememberMatch($match);
+
+        if ($match === null) {
+            $this->responder->halt('This account is disabled for your IP by Protector.<br />Clear cookie if you want to access this site as a guest.');
+        }
+    }
+
+    private function canBan(Visitor $visitor, ProtectorConfig $config): bool
+    {
+        if (!$visitor->isMember()) {
+            return true;
+        }
+
+        return array_intersect($visitor->groups(), $config->storedList('bip_except')) === [];
+    }
+
+    private function isLoginAttempt(): bool
+    {
+        $submitted = !empty($_POST['uname']) && !empty($_POST['pass']);
+        $remembered = !empty($_COOKIE['autologin_uname']) && !empty($_COOKIE['autologin_pass']);
+
+        return $submitted || $remembered;
+    }
+
+    private function applyBansDecidedByPrecheck(bool $canBan, ProtectorConfig $config): void
+    {
+        if (!$canBan) {
+            return;
+        }
+
+        if ($this->banPermanentlyWhenPossible) {
+            $this->banList->registerClient();
+
+            return;
+        }
+
+        if ($this->banTemporarilyWhenPossible) {
+            $this->banList->registerClient(time() + $config->int('banip_time0'));
+        }
+    }
+
+    private function checkRequestRate(Visitor $visitor, bool $canBan, ProtectorConfig $config): void
+    {
+        if ($this->skipsRateCheck($config)) {
+            return;
+        }
+
+        $this->dosGuard($config)->check($visitor->uid(), $canBan);
+    }
+
+    private function skipsRateCheck(ProtectorConfig $config): bool
+    {
+        if (defined('PROTECTOR_SKIP_DOS_CHECK')) {
+            return true;
+        }
+
+        $skipped = explode('|', $config->string('dos_skipmodules'));
+        $module = $GLOBALS['xoopsModule'] ?? null;
+
+        if (is_object($module)) {
+            return in_array($module->getVar('dirname'), $skipped);
+        }
+
+        foreach ($skipped as $directory) {
+            if ($directory && strstr((string) getcwd(), $directory)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function checkSqlInjectionPatterns(Visitor $visitor, bool $canBan, ProtectorConfig $config): void
+    {
+        $doubtful = (($nullsafeVariable2 = $this->scanner) ? $nullsafeVariable2->doubtfulValues() : null) ?? [];
+
+        $comment = new ViolationPolicy($config->int('isocom_action'));
+
+        if (!(new IsolatedCommentGuard($this->log, $this->mutator))->isSafe($doubtful, $comment->sanitizes())) {
+            $this->punish($comment, 'ISOCOM', $visitor->uid(), $canBan, $config);
+        }
+
+        $union = new ViolationPolicy($config->int('union_action'));
+
+        if (!(new UnionGuard($this->log, $this->mutator))->isSafe($doubtful, $union->sanitizes())) {
+            $this->punish($union, 'UNION', $visitor->uid(), $canBan, $config);
+        }
+    }
+
+    private function punish(ViolationPolicy $policy, string $type, int $uid, bool $canBan, ProtectorConfig $config): void
+    {
+        if ($canBan && $policy->bansPermanently()) {
+            $this->banList->registerClient();
+        }
+
+        if ($canBan && !$policy->bansPermanently() && $policy->bansTemporarily()) {
+            $this->banList->registerClient(time() + $config->int('banip_time0'));
+        }
+
+        $this->log->write($type, $uid, true, LogLevel::INJECTION);
+
+        if ($policy->exits()) {
+            $this->purger->purge();
+        }
+    }
+
+    private function checkPostedContent(Visitor $visitor, ProtectorConfig $config): void
+    {
+        if (empty($_POST)) {
+            return;
+        }
+
+        $spam = new SpamGuard($this->log, $this->filters, $this->responder);
+
+        if ($visitor->isMember() && !$visitor->isAdmin() && $config->enabled('spamcount_uri4user')) {
+            $spam->check($config->int('spamcount_uri4user'), $visitor->uid());
+        }
+
+        if (!$visitor->isMember() && $config->enabled('spamcount_uri4guest')) {
+            $spam->check($config->int('spamcount_uri4guest'), 0);
+        }
+
+        $this->filters->execute('postcommon_post');
+    }
+
+    private function accessRepository(): AccessRepository
+    {
+        return new AccessRepository($this->database, XOOPS_DB_PREFIX);
+    }
+
+    private function dosGuard(ProtectorConfig $config): DosGuard
+    {
+        return new DosGuard(
+            $config,
+            $this->accessRepository(),
+            $this->bandwidth,
+            $this->banList,
+            $this->htaccess,
+            $this->filters,
+            $this->log,
+            $this->responder,
+        );
+    }
+
+    private function bruteForceGuard(ProtectorConfig $config): BruteForceGuard
+    {
+        return new BruteForceGuard($config, $this->accessRepository(), $this->banList, $this->filters, $this->log, $this->responder);
+    }
+
+    private function define(string $constant): void
+    {
+        if (!defined($constant)) {
+            define($constant, 1);
+        }
+    }
+}

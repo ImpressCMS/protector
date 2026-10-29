@@ -1,0 +1,52 @@
+diff --git a/htdocs/plugins/preloads/protector.php b/htdocs/plugins/preloads/protector.php
+index 70913ff0d..e9eae4e9e 100644
+--- a/htdocs/plugins/preloads/protector.php
++++ b/htdocs/plugins/preloads/protector.php
+@@ -3,7 +3,10 @@
+ /**
+  * Initiating Protector module
+  *
+- * This file is responsible for initiating the Protector module so no hacks on mainfile are required
++ * This file is responsible for initiating the Protector module so no hacks on mainfile are required.
++ *
++ * Protector 6 keeps all its code in modules/protector. Earlier versions kept it in the trust path, so the
++ * trust path is used when the module directory does not have the files.
+  *
+  * @copyright	The ImpressCMS Project http://www.impresscms.org/
+  * @license		http://www.gnu.org/licenses/old-licenses/gpl-2.0.html GNU General Public License (GPL)
+@@ -23,16 +26,31 @@
+ class IcmsPreloadProtector extends icms_preload_Item {
+ 
+ 	function eventStartCoreBoot() {
+-		$filename = ICMS_TRUST_PATH . '/modules/protector/include/precheck.inc.php';
+-		if (file_exists($filename)) {
++		$filename = $this->locate('precheck.inc.php');
++		if ($filename !== null) {
+ 			include $filename;
+ 		}
+ 	}
+ 
+ 	function eventFinishCoreBoot() {
+-		$filename = ICMS_TRUST_PATH . '/modules/protector/include/postcheck.inc.php';
+-		if (file_exists($filename)) {
++		$filename = $this->locate('postcheck.inc.php');
++		if ($filename !== null) {
+ 			include $filename;
+ 		}
+ 	}
++
++	/**
++	 * @param string $file Name of the file in Protector's include directory
++	 * @return string|null Path of the file in the module directory, else in the trust path, else null
++	 */
++	private function locate($file) {
++		foreach (array(ICMS_ROOT_PATH, ICMS_TRUST_PATH) as $base) {
++			$filename = $base . '/modules/protector/include/' . $file;
++			if (file_exists($filename)) {
++				return $filename;
++			}
++		}
++
++		return null;
++	}
+ }
