@@ -149,7 +149,7 @@ final class PhpCompatibilityTest extends TestCase
      */
     private function moduleFiles(): array
     {
-        $files = [];
+        $files = [dirname(__DIR__, 3) . '/bin/build-package'];
         $root = dirname(__DIR__, 3) . '/root/modules/protector';
 
         foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS)) as $file) {
