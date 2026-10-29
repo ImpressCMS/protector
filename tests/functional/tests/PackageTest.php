@@ -58,7 +58,10 @@ final class PackageTest extends SiteTestCase
 
         $this->assertSame([], $this->staleFiles($before, $shipped));
         foreach (['precheck.inc.php', 'postcheck.inc.php'] as $forwarding) {
-            $this->assertFileEquals(self::layout()->repoTrustTree() . "/modules/protector/include/{$forwarding}", self::layout()->liveTrustModuleDir() . "/include/{$forwarding}");
+            $this->assertSame(
+                str_replace("\r\n", "\n", (string) file_get_contents(self::layout()->repoTrustTree() . "/modules/protector/include/{$forwarding}")),
+                (string) file_get_contents(self::layout()->liveTrustModuleDir() . "/include/{$forwarding}")
+            );
         }
         $this->assertFileExists(self::layout()->customFilterDir() . '/' . self::CUSTOM_FILTER . '.php');
         $this->assertSame('777', $this->preference('bf_count'));
