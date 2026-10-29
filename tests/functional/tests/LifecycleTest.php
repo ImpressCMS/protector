@@ -56,14 +56,14 @@ final class LifecycleTest extends SiteTestCase
         parent::tearDown();
     }
 
-    #[Scenario('LIF-01', 'the module was installed by the ImpressCMS installer', 'the installation is inspected', 'the module is registered, active, at version 5.1.0; it has 33 preferences with the documented names, types and defaults (including dos_skipmodules, which the core uses to detect Protector); and the log and access tables exist')]
+    #[Scenario('LIF-01', 'the module was installed by the ImpressCMS installer', 'the installation is inspected', 'the module is registered, active, at version 6.0.0; it has 33 preferences with the documented names, types and defaults (including dos_skipmodules, which the core uses to detect Protector); and the log and access tables exist')]
     public function testFreshInstallation(): void
     {
         $pdo = self::config()->pdo(self::config()->get('DB_NAME'));
         $prefix = self::config()->get('DB_PREFIX');
 
         $module = $pdo->query("SELECT version, isactive, hasadmin, hasmain, hasconfig FROM `{$prefix}_modules` WHERE dirname = 'protector'")->fetch();
-        $this->assertSame('5.1.0', $module['version']);
+        $this->assertSame('6.0.0', $module['version']);
         $this->assertSame([1, 1, 0, 1], [(int) $module['isactive'], (int) $module['hasadmin'], (int) $module['hasmain'], (int) $module['hasconfig']]);
 
         $rows = $pdo->query("SELECT conf_name, conf_value, conf_valuetype, conf_formtype FROM `{$prefix}_config` WHERE conf_title LIKE '\\_MI\\_PROTECTOR%' ORDER BY conf_order, conf_id")->fetchAll();
