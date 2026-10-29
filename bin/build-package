@@ -1,0 +1,462 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/*
+ * Builds the zip that is unzipped in the modules/ folder of an installed ImpressCMS 2.0.4 site, on top of the Protector
+ * that ships with it. Only committed content is packaged. Run with --help for the options.
+ */
+
+final class PackageBuilder
+{
+    private const MODULE_TREE = 'root/modules/protector';
+
+    private const TRUST_TREE = 'trust_path/modules/protector';
+
+    private const TRUST_TARGET = 'protector/include/trust_path/modules/protector';
+
+    private const OBSOLETE_LIST = 'protector/include/obsolete-files.txt';
+
+    private const VERSION_FILE = 'root/modules/protector/include/version.txt';
+
+    private const DEFAULT_OBSOLETE_REFS = ['5.2', 'origin/5.2'];
+
+    private const NEVER_OBSOLETE_PREFIXES = ['modules/protector/configs/'];
+
+    private const EXCLUDED_NAMES = ['.gitignore', '.gitattributes', '.DS_Store', 'Thumbs.db'];
+
+    private const FORBIDDEN_PATTERN = '#(^|/)(tests?|docs?|vendor|\.git[^/]*)(/|$)#';
+
+    private const TEXT_EXTENSIONS = ['php', 'txt', 'html', 'css', 'js', 'sql', 'json', 'xml', 'md', 'htaccess'];
+
+    private const REQUIRED_FILES = [
+        'protector/icms_version.php',
+        'protector/include/oninstall.php',
+        'protector/include/onupdate.php',
+        'protector/include/onuninstall.php',
+        'protector/include/version.txt',
+        'protector/src/autoload.php',
+        'protector/config/preferences.php',
+        'protector/preload/protector.php',
+        'protector/include/trust_path/modules/protector/include/precheck.inc.php',
+        'protector/include/trust_path/modules/protector/include/postcheck.inc.php',
+        self::OBSOLETE_LIST,
+    ];
+
+    private string $repository;
+
+    private string $ref = 'HEAD';
+
+    private ?string $output = null;
+
+    /** @var list<string> */
+    private array $obsoleteRefs = [];
+
+    private bool $obsoleteRefsGiven = false;
+
+    private bool $withObsolete = true;
+
+    public function __construct(string $repository)
+    {
+        $this->repository = $repository;
+    }
+
+    /** @param list<string> $arguments */
+    public function run(array $arguments): int
+    {
+        $exitCode = $this->parse($arguments);
+
+        if ($exitCode !== null) {
+            return $exitCode;
+        }
+
+        try {
+            $path = $this->build();
+        } catch (\RuntimeException $exception) {
+            fwrite(STDERR, "Error: {$exception->getMessage()}\n");
+
+            return 1;
+        }
+
+        echo "Package ready: {$path}\n";
+
+        return 0;
+    }
+
+    /** @param list<string> $arguments the exit code when the script should stop, null to go on */
+    private function parse(array $arguments): ?int
+    {
+        foreach ($arguments as $argument) {
+            if ($argument === '--help' || $argument === '-h') {
+                echo $this->usage();
+
+                return 0;
+            }
+
+            if ($argument === '--no-obsolete') {
+                $this->withObsolete = false;
+
+                continue;
+            }
+
+            if (preg_match('/^--(ref|output|obsolete-from)=(.+)$/', $argument, $match) !== 1) {
+                fwrite(STDERR, "Unknown argument: {$argument}\n\n" . $this->usage());
+
+                return 1;
+            }
+
+            if ($match[1] === 'ref') {
+                $this->ref = $match[2];
+            }
+
+            if ($match[1] === 'output') {
+                $this->output = $match[2];
+            }
+
+            if ($match[1] === 'obsolete-from') {
+                $this->obsoleteRefs[] = $match[2];
+                $this->obsoleteRefsGiven = true;
+            }
+        }
+
+        return null;
+    }
+
+    private function usage(): string
+    {
+        return <<<'TEXT'
+Usage: php bin/build-package [--ref=<git ref>] [--output=<file.zip or directory>] [--obsolete-from=<git ref>]... [--no-obsolete]
+
+  --ref            commit, branch or tag to package (default: HEAD)
+  --output         zip file or directory (default: var/dist/protector-<version>-<commit>.zip)
+  --obsolete-from  ref of an older Protector layout whose files are deleted by the module update when the new
+                   version does not ship them; repeatable (default: 5.2, the 5.x line)
+  --no-obsolete    package without the list of obsolete files
+
+The zip holds one folder, protector/. Unzip it in the modules/ folder of the site, then update the module in the
+control panel.
+
+TEXT;
+    }
+
+    private function build(): string
+    {
+        $commit = $this->git(['rev-parse', '--verify', "{$this->ref}^{commit}"]);
+        $short = substr($commit, 0, 8);
+        $version = trim($this->git(['show', "{$commit}:" . self::VERSION_FILE]));
+
+        if ($version === '') {
+            throw new \RuntimeException(self::VERSION_FILE . ' is empty');
+        }
+
+        $this->warnAboutUncommittedChanges($short);
+
+        $module = $this->tree($commit, self::MODULE_TREE);
+        $trust = $this->tree($commit, self::TRUST_TREE);
+
+        $entries = [];
+
+        foreach ($module as $relative => $blob) {
+            if (!in_array(basename($relative), self::EXCLUDED_NAMES, true)) {
+                $entries["protector/{$relative}"] = $blob;
+            }
+        }
+
+        foreach ($trust as $relative => $blob) {
+            $entries[self::TRUST_TARGET . "/{$relative}"] = $blob;
+        }
+
+        $blobs = $this->blobs(array_values(array_unique(array_column($entries, 'sha'))));
+        $contents = array_map(function (array $blob) use ($blobs): array {
+            return ['mode' => $blob['mode'], 'data' => $this->normalise($blob['path'], $blobs[$blob['sha']])];
+        }, $entries);
+
+        if ($this->withObsolete) {
+            $contents[self::OBSOLETE_LIST] = ['mode' => '100644', 'data' => $this->obsoleteList(array_keys($module), array_keys($trust))];
+        }
+
+        $this->verify($contents);
+
+        return $this->write($contents, $this->target($version, $short), $commit);
+    }
+
+    private function warnAboutUncommittedChanges(string $short): void
+    {
+        if (trim($this->git(['status', '--porcelain', '--', 'root', 'trust_path'])) !== '') {
+            fwrite(STDERR, "Note: there are uncommitted changes; only commit {$short} is packaged.\n");
+        }
+    }
+
+    /** @return array<string, array{mode: string, sha: string, path: string}> relative path => blob */
+    private function tree(string $ref, string $directory): array
+    {
+        $output = $this->git(['ls-tree', '-r', '-z', $ref, '--', $directory]);
+        $files = [];
+
+        foreach (array_filter(explode("\0", $output)) as $line) {
+            if (preg_match('/^(\d+) blob ([0-9a-f]+)\t(.+)$/s', $line, $match) !== 1 || $match[1] === '120000') {
+                continue;
+            }
+
+            $files[substr($match[3], strlen($directory) + 1)] = ['mode' => $match[1], 'sha' => $match[2], 'path' => $match[3]];
+        }
+
+        ksort($files);
+
+        return $files;
+    }
+
+    private function normalise(string $path, string $data): string
+    {
+        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+
+        if (!in_array($extension, self::TEXT_EXTENSIONS, true) && basename($path) !== '.htaccess') {
+            return $data;
+        }
+
+        return str_replace("\r\n", "\n", $data);
+    }
+
+    /**
+     * @param list<string> $moduleFiles
+     * @param list<string> $trustFiles
+     */
+    private function obsoleteList(array $moduleFiles, array $trustFiles): string
+    {
+        $shippedRoot = array_flip($moduleFiles);
+        $shippedTrust = array_flip($trustFiles);
+        $lines = [];
+
+        foreach ($this->resolveObsoleteRefs() as $ref) {
+            foreach (array_keys($this->tree($ref, self::MODULE_TREE)) as $relative) {
+                if (!isset($shippedRoot[$relative]) && !$this->isNeverObsolete($relative)) {
+                    $lines["root:modules/protector/{$relative}"] = true;
+                }
+            }
+
+            foreach (array_keys($this->tree($ref, self::TRUST_TREE)) as $relative) {
+                if (!isset($shippedTrust[$relative]) && !$this->isNeverObsolete($relative)) {
+                    $lines["trust:modules/protector/{$relative}"] = true;
+                }
+            }
+        }
+
+        $lines = array_keys($lines);
+        sort($lines);
+
+        return $lines === [] ? '' : implode("\n", $lines) . "\n";
+    }
+
+    private function isNeverObsolete(string $relative): bool
+    {
+        foreach (self::NEVER_OBSOLETE_PREFIXES as $prefix) {
+            if (strpos("modules/protector/{$relative}", $prefix) === 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** @return list<string> */
+    private function resolveObsoleteRefs(): array
+    {
+        if ($this->obsoleteRefsGiven) {
+            return array_map([$this, 'resolveRef'], $this->obsoleteRefs);
+        }
+
+        foreach (self::DEFAULT_OBSOLETE_REFS as $candidate) {
+            try {
+                return [$this->resolveRef($candidate)];
+            } catch (\RuntimeException $exception) {
+                continue;
+            }
+        }
+
+        throw new \RuntimeException('The 5.x line (branch 5.2) was not found; use --obsolete-from=<ref> or --no-obsolete');
+    }
+
+    private function resolveRef(string $ref): string
+    {
+        try {
+            return $this->git(['rev-parse', '--verify', '--quiet', "{$ref}^{commit}"]);
+        } catch (\RuntimeException $exception) {
+            throw new \RuntimeException("Unknown ref: {$ref}");
+        }
+    }
+
+    /** @param array<string, array{mode: string, data: string}> $contents */
+    private function verify(array $contents): void
+    {
+        $missing = array_diff(self::REQUIRED_FILES, array_keys($contents));
+
+        if ($this->withObsolete === false) {
+            $missing = array_diff($missing, [self::OBSOLETE_LIST]);
+        }
+
+        if ($missing !== []) {
+            throw new \RuntimeException('Required files are missing: ' . implode(', ', $missing));
+        }
+
+        $forbidden = array_filter(array_keys($contents), static function (string $name): bool {
+            return preg_match(self::FORBIDDEN_PATTERN, $name) === 1;
+        });
+
+        if ($forbidden !== []) {
+            throw new \RuntimeException('Development files must not be packaged: ' . implode(', ', $forbidden));
+        }
+
+        $this->verifyObsoleteListIsDisjoint($contents);
+    }
+
+    /** @param array<string, array{mode: string, data: string}> $contents */
+    private function verifyObsoleteListIsDisjoint(array $contents): void
+    {
+        $clashes = [];
+
+        foreach (array_filter(explode("\n", $contents[self::OBSOLETE_LIST]['data'] ?? '')) as $entry) {
+            $relative = substr($entry, strpos($entry, ':') + 1);
+            $shipped = strpos($entry, 'root:') === 0
+                ? 'protector/' . substr($relative, strlen('modules/protector/'))
+                : self::TRUST_TARGET . '/' . substr($relative, strlen('modules/protector/'));
+
+            if (isset($contents[$shipped])) {
+                $clashes[] = $entry;
+            }
+        }
+
+        if ($clashes !== []) {
+            throw new \RuntimeException('Obsolete files that are also shipped: ' . implode(', ', $clashes));
+        }
+    }
+
+    private function target(string $version, string $short): string
+    {
+        $name = "protector-{$version}-{$short}.zip";
+
+        if ($this->output === null) {
+            return "{$this->repository}/var/dist/{$name}";
+        }
+
+        $isZip = strtolower(substr($this->output, -4)) === '.zip';
+
+        return $isZip ? $this->output : rtrim($this->output, '/\\') . "/{$name}";
+    }
+
+    /** @param array<string, array{mode: string, data: string}> $contents */
+    private function write(array $contents, string $target, string $commit): string
+    {
+        if (!is_dir(dirname($target)) && !mkdir(dirname($target), 0775, true) && !is_dir(dirname($target))) {
+            throw new \RuntimeException('Cannot create ' . dirname($target));
+        }
+
+        $temporary = "{$target}.partial";
+        $zip = new \ZipArchive();
+
+        if ($zip->open($temporary, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+            throw new \RuntimeException("Cannot create {$temporary}");
+        }
+
+        $time = (int) $this->git(['show', '-s', '--format=%ct', $commit]);
+        ksort($contents);
+
+        foreach ($contents as $name => $file) {
+            $zip->addFromString($name, $file['data']);
+            $executable = $file['mode'] === '100755';
+            $zip->setExternalAttributesName($name, \ZipArchive::OPSYS_UNIX, ($executable ? 0100755 : 0100644) << 16);
+
+            if (method_exists($zip, 'setMtimeName')) {
+                $zip->setMtimeName($name, $time);
+            }
+        }
+
+        if (!$zip->close()) {
+            throw new \RuntimeException("Cannot write {$temporary}");
+        }
+
+        if (!rename($temporary, $target)) {
+            throw new \RuntimeException("Cannot move the package to {$target}");
+        }
+
+        return $target;
+    }
+
+    /**
+     * @param list<string> $shas
+     * @return array<string, string> sha => content, read by one git process
+     */
+    private function blobs(array $shas): array
+    {
+        $requests = tempnam(sys_get_temp_dir(), 'protector-blobs');
+        file_put_contents($requests, implode("\n", $shas) . "\n");
+
+        $process = proc_open(
+            ['git', 'cat-file', '--batch'],
+            [0 => ['file', $requests, 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+            $pipes,
+            $this->repository
+        );
+
+        if (!is_resource($process)) {
+            unlink($requests);
+
+            throw new \RuntimeException('Cannot run git');
+        }
+
+        $blobs = [];
+
+        foreach ($shas as $sha) {
+            $header = fgets($pipes[1]);
+
+            if ($header === false || preg_match('/^' . $sha . ' blob (\d+)$/', trim($header), $match) !== 1) {
+                throw new \RuntimeException("Cannot read the blob {$sha}");
+            }
+
+            $size = (int) $match[1];
+            $data = '';
+
+            while (strlen($data) < $size) {
+                $data .= (string) fread($pipes[1], $size - strlen($data));
+            }
+
+            fgets($pipes[1]);
+            $blobs[$sha] = $data;
+        }
+
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        proc_close($process);
+        unlink($requests);
+
+        return $blobs;
+    }
+
+    /** @param list<string> $arguments */
+    private function git(array $arguments): string
+    {
+        $process = proc_open(
+            array_merge(['git'], $arguments),
+            [1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+            $pipes,
+            $this->repository
+        );
+
+        if (!is_resource($process)) {
+            throw new \RuntimeException('Cannot run git');
+        }
+
+        $output = (string) stream_get_contents($pipes[1]);
+        $errors = (string) stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+
+        if (proc_close($process) !== 0) {
+            throw new \RuntimeException('git ' . implode(' ', $arguments) . ' failed: ' . trim($errors));
+        }
+
+        return strpos($arguments[0], 'rev-parse') === 0 ? trim($output) : $output;
+    }
+}
+
+exit((new PackageBuilder(dirname(__DIR__)))->run(array_slice($argv, 1)));

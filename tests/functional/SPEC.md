@@ -166,7 +166,7 @@ composer test:functional            # about 100 seconds
 
 | ID | Given | When | Then | Known defect |
 |---|---|---|---|---|
-| LIF-01 | the module was installed by the ImpressCMS installer | the installation is inspected | the module is registered, active, at version 5.1.0; it has 33 preferences with the documented names, types and defaults (including dos_skipmodules, which the core uses to detect Protector); and the log and access tables exist |  |
+| LIF-01 | the module was installed by the ImpressCMS installer | the installation is inspected | the module is registered, active, at version 6.0.0; it has 33 preferences with the documented names, types and defaults (including dos_skipmodules, which the core uses to detect Protector); and the log and access tables exist |  |
 | LIF-02 | the module was installed by the ImpressCMS installer | the files that connect Protector to the core are inspected | the preload file declares IcmsPreloadProtector and includes the module's pre- and post-check files |  |
 | LIF-03 | the module is installed | the control panel dashboard is opened | it does not warn that Protector cannot be found |  |
 | LIF-04 | the module is installed | the administrator uninstalls the module in the control panel | the module, its preferences and both tables are gone; the preload file is removed; the dashboard now warns that Protector cannot be found |  |
