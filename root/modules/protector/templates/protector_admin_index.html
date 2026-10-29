@@ -1,0 +1,122 @@
+<h3 style='text-align:<{$alignLeft}>;'><{$moduleName|escape}></h3>
+
+<{if !$dataDirectoryWritable}>
+    <p style='color:red;font-weight:bold;'><{$configsNotWritable|escape}></p>
+<{/if}>
+
+<form name='ConfigForm' action='' method='POST'>
+    <{$tokenForConfig}>
+    <input type='hidden' name='action' value='update_ips' />
+    <table width='95%' class='outer' cellpadding='4' cellspacing='1'>
+        <tr valign='top' align='<{$alignLeft}>'>
+            <td class='head'><{$smarty.const._AM_TH_BADIPS}></td>
+            <td class='even'>
+                <textarea name='bad_ips' id='bad_ips' style='width:200px;height:60px;'><{$badIps|escape}></textarea>
+                <br />
+                <{$badIpsPath|escape}>
+            </td>
+        </tr>
+        <tr valign='top' align='<{$alignLeft}>'>
+            <td class='head'><{$smarty.const._AM_TH_GROUP1IPS}></td>
+            <td class='even'>
+                <textarea name='group1_ips' id='group1_ips' style='width:200px;height:60px;'><{$groupOneIps|escape}></textarea>
+                <br />
+                <{$groupOneIpsPath|escape}>
+            </td>
+        </tr>
+        <tr valign='top' align='<{$alignLeft}>'>
+            <td class='head'></td>
+            <td class='even'><input type='submit' value='<{$smarty.const._GO}>' /></td>
+        </tr>
+    </table>
+</form>
+
+<table width='95%' border='0' cellpadding='4' cellspacing='0'>
+    <tr>
+        <td>
+            <form action='' method='GET' style='margin-bottom:0px;'>
+                <table width='95%' border='0' cellpadding='4' cellspacing='0'>
+                    <tr>
+                        <td align='<{$alignLeft}>'>
+                            <select name='num' onchange='submit();'>
+                                <{foreach from=$pageSizes item=size}>
+                                    <option value='<{$size.value}>'<{if $size.selected}> selected='selected'<{/if}>><{$size.value}></option>
+                                <{/foreach}>
+                            </select>
+                            <input type='submit' value='<{$smarty.const._SUBMIT}>' />
+                        </td>
+                        <td align='<{$alignRight}>'><{$navigation}></td>
+                    </tr>
+                </table>
+            </form>
+            <form name='MainForm' action='' method='POST' style='margin-top:0px;'>
+                <{$tokenForLog}>
+                <input type='hidden' name='action' value='' />
+                <table width='95%' class='outer' cellpadding='4' cellspacing='1'>
+                    <tr valign='middle'>
+                        <th width='5'><input type='checkbox' name='dummy' onclick='protectorToggleAll(this);' /></th>
+                        <th><{$smarty.const._AM_TH_DATETIME}></th>
+                        <th><{$smarty.const._AM_TH_USER}></th>
+                        <th><{$smarty.const._AM_TH_IP}><br /><{$smarty.const._AM_TH_AGENT}></th>
+                        <th><{$smarty.const._AM_TH_TYPE}></th>
+                        <th><{$smarty.const._AM_TH_DESCRIPTION}></th>
+                    </tr>
+                    <{foreach from=$rows item=row}>
+                        <tr>
+                            <td class='<{$row.rowClass}>'><input type='checkbox' name='ids[]' value='<{$row.id}>' /></td>
+                            <td class='<{$row.rowClass}>'><{$row.time|escape}></td>
+                            <td class='<{$row.rowClass}>'><{$row.user|escape}></td>
+                            <td class='<{$row.rowClass}>'>
+                                <{$row.ip|escape}><br />
+                                <{if $row.agentIsShortened}>
+                                    <{$row.agentShort|escape}><img src='<{$imagesUrl}>/dotdotdot.gif' alt='<{$row.agent|escape}>' title='<{$row.agent|escape}>' />
+                                <{else}>
+                                    <{$row.agent|escape}>
+                                <{/if}>
+                            </td>
+                            <td class='<{$row.rowClass}>'><{$row.type|escape}></td>
+                            <td class='<{$row.rowClass}>' width='100%'><{$row.description|escape}></td>
+                        </tr>
+                    <{/foreach}>
+                    <tr>
+                        <td colspan='8' align='<{$alignLeft}>'>
+                            <{$smarty.const._AM_LABEL_REMOVE}>
+                            <input type='button' value='<{$smarty.const._AM_BUTTON_REMOVE}>' data-action='delete' data-confirm='<{$smarty.const._AM_JS_REMOVECONFIRM|escape}>' onclick='protectorSubmit(this);' />
+                        </td>
+                    </tr>
+                </table>
+                <div align='<{$alignRight}>'><{$navigation}></div>
+                <div style='clear:both;'><br /><br /></div>
+                <div align='<{$alignRight}>'>
+                    <{$smarty.const._AM_LABEL_COMPACTLOG}>
+                    <input type='button' value='<{$smarty.const._AM_BUTTON_COMPACTLOG}>' data-action='compactlog' data-confirm='<{$smarty.const._AM_JS_COMPACTLOGCONFIRM|escape}>' onclick='protectorSubmit(this);' />
+                    &nbsp;
+                    <{$smarty.const._AM_LABEL_REMOVEALL}>
+                    <input type='button' value='<{$smarty.const._AM_BUTTON_REMOVEALL}>' data-action='deleteall' data-confirm='<{$smarty.const._AM_JS_REMOVEALLCONFIRM|escape}>' onclick='protectorSubmit(this);' />
+                </div>
+            </form>
+        </td>
+    </tr>
+</table>
+
+<script type='text/javascript'>
+    function protectorToggleAll(master) {
+        var boxes = document.MainForm.elements['ids[]'];
+        if (!boxes) {
+            return;
+        }
+        if (typeof boxes.length === 'undefined') {
+            boxes = [boxes];
+        }
+        for (var index = 0; index < boxes.length; index++) {
+            boxes[index].checked = master.checked;
+        }
+    }
+
+    function protectorSubmit(button) {
+        if (confirm(button.getAttribute('data-confirm'))) {
+            document.MainForm.action.value = button.getAttribute('data-action');
+            document.MainForm.submit();
+        }
+    }
+</script>

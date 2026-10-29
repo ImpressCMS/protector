@@ -1,0 +1,40 @@
+<style type='text/css'>
+    .protector-advisory dd {
+        margin-<{$alignLeft}>: 32px;
+    }
+</style>
+
+<br />
+<div class='bg4 protector-advisory' style='border: 2px solid #2F5376;padding:8px;width:95%;'>
+    <{foreach from=$results item=result}>
+        <dl>
+            <dt>
+                '<{$result.subject|escape}>' :
+                <{if $result.imageUrl}>
+                    <img src='<{$result.imageUrl|escape}>' width='40' height='20' alt='' style='border:1px solid black;' /><br />
+                    <a href='<{$result.linkUrl|escape}>'><{$result.linkText}></a>
+                <{else}>
+                    <{$result.value|escape}> &nbsp;
+                    <span style='color:<{if $result.ok}>green<{else}>red<{/if}>;font-weight:bold;'><{$result.statusText}></span>
+                <{/if}>
+            </dt>
+            <{if $result.advice}>
+                <dd><{$result.advice}></dd>
+            <{/if}>
+        </dl>
+    <{/foreach}>
+</div>
+<br />
+
+<br />
+<div class='bg4' style='border: 2px solid #2F5376;padding:8px;width:95%;'>
+    <h3><{$smarty.const._AM_ADV_SUBTITLECHECK}></h3>
+    <dl>
+        <dt><{$smarty.const._AM_ADV_CHECKCONTAMI}>:</dt>
+        <dd><a href='<{$contaminationUrl|escape}>' target='_blank'><{$contaminationUrl|escape}></a></dd>
+    </dl>
+    <dl>
+        <dt><{$smarty.const._AM_ADV_CHECKISOCOM}>:</dt>
+        <dd><a href='<{$isolatedCommentUrl|escape}>' target='_blank'><{$isolatedCommentUrl|escape}></a></dd>
+    </dl>
+</div>
