@@ -1,0 +1,88 @@
+<?php
+
+declare(strict_types=1);
+
+namespace ImpressCMS\Module\Protector\Dos;
+
+use ImpressCMS\Module\Protector\Ban\BanList;
+use ImpressCMS\Module\Protector\Config\ProtectorConfig;
+use ImpressCMS\Module\Protector\Filter\FilterHandler;
+use ImpressCMS\Module\Protector\Http\Responder;
+use ImpressCMS\Module\Protector\Http\ServerRequest;
+use ImpressCMS\Module\Protector\Http\TextSanitiser;
+use ImpressCMS\Module\Protector\Log\AuditLog;
+
+final class BruteForceGuard
+{
+    /**
+     * @readonly
+     */
+    private ProtectorConfig $config;
+    /**
+     * @readonly
+     */
+    private AccessRepository $access;
+    /**
+     * @readonly
+     */
+    private BanList $banList;
+    /**
+     * @readonly
+     */
+    private FilterHandler $filters;
+    /**
+     * @readonly
+     */
+    private AuditLog $log;
+    /**
+     * @readonly
+     */
+    private Responder $responder;
+    private const RECORD_SECONDS_TO_LIVE = 600;
+
+    public function __construct(ProtectorConfig $config, AccessRepository $access, BanList $banList, FilterHandler $filters, AuditLog $log, Responder $responder)
+    {
+        $this->config = $config;
+        $this->access = $access;
+        $this->banList = $banList;
+        $this->filters = $filters;
+        $this->log = $log;
+        $this->responder = $responder;
+    }
+
+    public function check(): void
+    {
+        $ip = ServerRequest::clientIp();
+
+        if ($ip === '') {
+            return;
+        }
+
+        $victim = $this->attemptedUsername();
+
+        if ($victim === 'deleted') {
+            return;
+        }
+
+        $uri = ServerRequest::uri();
+
+        $this->access->collectGarbage();
+
+        if ($this->access->countFailedLogins($ip) > $this->config->int('bf_count')) {
+            $this->banList->register($ip, time() + $this->config->int('banip_time0'));
+            $this->log->noteIncident('BruteForce', "Trying to login as '" . addslashes($victim) . "' found.\n");
+            $this->log->write('BRUTE FORCE', 0, true);
+
+            if ($this->filters->execute('bruteforce_overrun') === 0) {
+                $this->responder->halt();
+            }
+        }
+
+        $this->access->recordFailedLogin($ip, $uri, addslashes("BRUTE FORCE: {$victim}"), self::RECORD_SECONDS_TO_LIVE);
+    }
+
+    private function attemptedUsername(): string
+    {
+        return TextSanitiser::sanitise(empty($_COOKIE['autologin_uname']) ? ($_POST['uname'] ?? '') : $_COOKIE['autologin_uname']);
+    }
+}

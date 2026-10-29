@@ -1,0 +1,14 @@
+{
+    "name": "impresscms/protector",
+    "description": "Protector hardens an ImpressCMS site against malicious attacks",
+    "type": "impresscms-module",
+    "license": "GPL-2.0-or-later",
+    "require": {
+        "php": ">=8.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "ImpressCMS\\Module\\Protector\\": "src/"
+        }
+    }
+}
